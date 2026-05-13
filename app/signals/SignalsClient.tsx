@@ -12,7 +12,7 @@ import {
   Loader2,
   Inbox,
   Globe,
-  Archive,
+  Eye,
   Filter,
   Building2,
   TrendingUp,
@@ -22,7 +22,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import ManualSignalModal from '@/components/signals/ManualSignalModal';
 import {
@@ -34,13 +33,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SECTOR_LABELS, EVENT_CATEGORY_LABELS } from '@/utils/constants';
+import { COUNTRY_LABELS } from '@/utils/countries';
 import { Database } from '../../database.types';
 
 type RawSignal = Database['public']['Tables']['raw_signals']['Row'];
+type UserSignal = Database['public']['Tables']['user_signals']['Row'];
 type SignalType = Database['public']['Enums']['signal_category'];
 
-type ExtendedSignal = RawSignal & {
-  status?: string;
+type ExtendedSignal = (RawSignal | UserSignal) & {
+  signal_type?: SignalType | null;   // exists only on RawSignal
+  published_at?: string | null;     // exists only on RawSignal
+  status?: string;                  // already present in both, but made explicit
 };
 
 interface SignalTypeConfig {
@@ -117,6 +120,9 @@ const getEventCategoryStyle = (category: string | null): string => {
 
 const getSectorLabel = (sector: string) => SECTOR_LABELS[sector] || sector;
 
+const getCountryLabel = (code: string | null) =>
+  code ? COUNTRY_LABELS[code] || code.toUpperCase() : 'Not specified';
+
 const getSignalTypeConfig = (
   signalType: SignalType | null
 ): SignalTypeConfig => {
@@ -134,13 +140,9 @@ const getSignalTypeConfig = (
 };
 
 export default function SignalsClient({ profile }: { profile: any }) {
-  const [activeTab, setActiveTab] = useState<'inbox' | 'search' | 'archive'>(
-    'inbox'
-  );
+  const [activeTab, setActiveTab] = useState<'inbox' | 'search' | 'viewed'>('inbox');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSignalTypes, setSelectedSignalTypes] = useState<SignalType[]>(
-    []
-  );
+  const [selectedSignalTypes, setSelectedSignalTypes] = useState<SignalType[]>([]);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -155,7 +157,11 @@ export default function SignalsClient({ profile }: { profile: any }) {
     setAllSignals([]);
   }, [activeTab, searchQuery, selectedSignalTypes]);
 
-  const { data, isLoading } = useQuery<{ signals: ExtendedSignal[]; total: number; hasMore: boolean }>({
+  const { data, isLoading } = useQuery<{
+    signals: ExtendedSignal[];
+    total: number;
+    hasMore: boolean;
+  }>({
     queryKey: ['signals', activeTab, searchQuery, selectedSignalTypes, offset],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -234,17 +240,17 @@ export default function SignalsClient({ profile }: { profile: any }) {
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/30 mb-4">
         {activeTab === 'inbox' && <Inbox className="h-8 w-8 text-muted-foreground" />}
         {activeTab === 'search' && <Globe className="h-8 w-8 text-muted-foreground" />}
-        {activeTab === 'archive' && <Archive className="h-8 w-8 text-muted-foreground" />}
+        {activeTab === 'viewed' && <Eye className="h-8 w-8 text-muted-foreground" />}
       </div>
       <h3 className="text-lg font-semibold mb-1">No signals found</h3>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
         {searchQuery || selectedSignalTypes.length > 0
           ? 'Try adjusting your filters or search term.'
           : activeTab === 'inbox'
-            ? 'Your inbox is empty. Browse the Firehose or add a manual signal.'
-            : activeTab === 'search'
-              ? 'No signals available in the global feed at the moment.'
-              : 'Your archive is empty. Dismiss signals from your inbox to see them here.'}
+          ? 'Your inbox is empty. Browse the Firehose or add a manual signal.'
+          : activeTab === 'search'
+          ? 'No signals available in the global feed at the moment.'
+          : 'You haven’t viewed or dismissed any signals yet.'}
       </p>
       {(searchQuery || selectedSignalTypes.length > 0) && (
         <Button variant="outline" onClick={clearFilters} className="mt-4">
@@ -292,7 +298,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
           className="w-full lg:w-auto"
         >
           <TabsList className="bg-muted/50 p-1 w-full lg:w-auto">
-            {['inbox', 'search', 'archive'].map((tab) => (
+            {['inbox', 'search', 'viewed'].map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
@@ -300,8 +306,8 @@ export default function SignalsClient({ profile }: { profile: any }) {
               >
                 {tab === 'inbox' && <Inbox className="h-4 w-4" />}
                 {tab === 'search' && <Globe className="h-4 w-4" />}
-                {tab === 'archive' && <Archive className="h-4 w-4" />}
-                {tab === 'search' ? 'Firehose' : tab}
+                {tab === 'viewed' && <Eye className="h-4 w-4" />}
+                {tab === 'search' ? 'Firehose' : tab === 'viewed' ? 'Viewed' : 'Inbox'}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -446,6 +452,12 @@ export default function SignalsClient({ profile }: { profile: any }) {
                             {new Date(signal.published_at).toLocaleDateString()}
                           </span>
                         )}
+                        {signal.country && (
+                          <span className="flex items-center gap-1 font-medium">
+                            <Globe className="h-3 w-3" />
+                            {getCountryLabel(signal.country)}
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -476,8 +488,25 @@ export default function SignalsClient({ profile }: { profile: any }) {
                       </div>
                     </div>
 
-                    {/* Changed button column: now just "Analyze" */}
                     <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
+                      {signal.link && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          asChild
+                        >
+                          <a
+                            href={signal.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            <span className="sr-only">Open source</span>
+                          </a>
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -488,7 +517,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
                         }}
                       >
                         <ExternalLink className="h-4 w-4" />
-                        <span className="hidden sm:inline">Analyze</span>
+                        <span className="hidden sm:inline">Details</span>
                       </Button>
                     </div>
                   </div>

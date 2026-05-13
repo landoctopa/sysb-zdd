@@ -7,66 +7,68 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { signalId, action } = await req.json();
 
-  // 1. Auth & Identity
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    // 2. Fetch the signal – try user_signals first, then raw_signals
-    let signal: any = null;
-    let isUserSignal = false;
+    // Resolve the user_signal row (must exist)
+    let userSignal: any = null;
 
-    const { data: userSignal } = await supabase
+    // Try by user_signal id first
+    const { data: byId } = await supabase
       .from('user_signals')
       .select('*')
       .eq('id', signalId)
       .single();
 
-    if (userSignal) {
-      signal = userSignal;
-      isUserSignal = true;
+    if (byId) {
+      userSignal = byId;
     } else {
-      const { data: rawSignal } = await supabase
+      // It might be a raw_signal id – find the user_signal by raw_signal_id
+      const { data: raw } = await supabase
         .from('raw_signals')
-        .select('*')
+        .select('id')
         .eq('id', signalId)
         .single();
-      if (rawSignal) {
-        signal = rawSignal;
+
+      if (raw) {
+        const { data: byRawId } = await supabase
+          .from('user_signals')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('raw_signal_id', raw.id)
+          .single();
+
+        if (byRawId) {
+          userSignal = byRawId;
+        }
       }
     }
 
-    if (!signal) {
-      return NextResponse.json({ error: 'Signal not found' }, { status: 404 });
+    if (!userSignal) {
+      return NextResponse.json({ error: 'Signal not found or dossier not generated yet' }, { status: 404 });
     }
 
     if (action === 'promote') {
-      // Use dossier from user_signal if available, else empty
-      const dossier = signal.ai_dossier || {};
+      const dossier = userSignal.ai_dossier || {};
+      const eventLabel = EVENT_CATEGORY_LABELS[userSignal.event_category] || userSignal.event_category;
 
-      // Get a readable label for the event category
-      const eventLabel = EVENT_CATEGORY_LABELS[signal.event_category] || signal.event_category;
-
-      // Determine the raw_signal_id
-      const rawSignalId = isUserSignal ? signal.raw_signal_id : signal.id;
-
-      // STEP A: Create the Lead
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .insert({
           user_id: user.id,
-          user_signal_id: isUserSignal ? signal.id : null, // only set if it’s a user_signal
-          signal_id: rawSignalId,
-          company_name: signal.company_name,
-          title: signal.title,
-          country: signal.country,
-          lead_category: signal.event_category,
-          hotness_score: dossier.hotness_score || signal.match_score || 0,
-          strategic_analysis: dossier.strategic_analysis,
-          trigger_alignment: dossier.trigger_alignment,
-          strategic_hurdles: dossier.hurdles,
-          business_justification: dossier.business_justification,
-          deal_timeline: dossier.estimated_sales_cycle,
+          user_signal_id: userSignal.id,
+          signal_id: userSignal.raw_signal_id,
+          company_name: userSignal.company_name,
+          title: userSignal.title,
+          country: userSignal.country,
+          lead_category: userSignal.event_category,
+          hotness_score: dossier.hotness_score || userSignal.match_score || 0,
+          strategic_analysis: dossier.strategic_analysis || null,
+          trigger_alignment: dossier.trigger_alignment || null,
+          strategic_hurdles: dossier.hurdles || null,
+          business_justification: dossier.business_justification || null,
+          deal_timeline: dossier.estimated_sales_cycle || null,
           status: 'new',
         })
         .select()
@@ -74,7 +76,6 @@ export async function POST(req: Request) {
 
       if (leadError) throw new Error(`Lead promotion failed: ${leadError.message}`);
 
-      // STEP B: Initialize AI Coach log
       await supabase.from('ai_coach_logs').insert({
         lead_id: lead.id,
         stage: 'outreach',
@@ -85,29 +86,21 @@ export async function POST(req: Request) {
         },
       });
 
-      // STEP C: If we have a user_signal, mark it as promoted
-      if (isUserSignal) {
-        await supabase
-          .from('user_signals')
-          .update({ status: 'promoted' })
-          .eq('id', signalId);
-      }
+      await supabase
+        .from('user_signals')
+        .update({ status: 'promoted' })
+        .eq('id', userSignal.id);
+
     } else if (action === 'dismiss') {
-      if (isUserSignal) {
-        await supabase
-          .from('user_signals')
-          .update({ status: 'dismissed' })
-          .eq('id', signalId);
-      }
-      // If it's a raw signal, we don't store a dismissal record yet (optional future enhancement)
+      await supabase
+        .from('user_signals')
+        .update({ status: 'dismissed' })
+        .eq('id', userSignal.id);
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Action API Error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to process action' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Failed to process action' }, { status: 500 });
   }
 }
