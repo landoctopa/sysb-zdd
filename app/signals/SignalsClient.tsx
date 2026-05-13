@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Search as SearchIcon,
   Plus,
-  Check,
-  X,
   ExternalLink,
   Loader2,
   Inbox,
@@ -89,8 +87,6 @@ const SIGNAL_TYPES: Record<SignalType, SignalTypeConfig> = {
   },
 };
 
-
-
 const EVENT_CATEGORY_STYLES: Record<string, string> = {
   launch: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   funding: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
@@ -119,10 +115,7 @@ const getEventCategoryStyle = (category: string | null): string => {
   return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
 };
 
-
 const getSectorLabel = (sector: string) => SECTOR_LABELS[sector] || sector;
-
-// ----------------------------------------------------------------------
 
 const getSignalTypeConfig = (
   signalType: SignalType | null
@@ -152,13 +145,11 @@ export default function SignalsClient({ profile }: { profile: any }) {
   const queryClient = useQueryClient();
   const router = useRouter();
 
-  // Pagination state
   const [offset, setOffset] = useState(0);
   const [allSignals, setAllSignals] = useState<ExtendedSignal[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const limit = 20;
 
-  // Reset pagination when tab, search, or filters change
   useEffect(() => {
     setOffset(0);
     setAllSignals([]);
@@ -180,7 +171,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
     },
   });
 
-  // Update the aggregated signals list when new data arrives
   useEffect(() => {
     if (data) {
       if (offset === 0) {
@@ -195,31 +185,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
   const loadMore = () => {
     setOffset((prev) => prev + limit);
   };
-
-  const triageMutation = useMutation({
-    mutationFn: async ({
-      id,
-      action,
-    }: {
-      id: string;
-      action: 'new' | 'dismissed';
-    }) => {
-      const res = await fetch('/api/signals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ raw_signal_id: id, action }),
-      });
-      if (!res.ok) throw new Error('Failed to update signal');
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['signals'] });
-      toast.success('Signal updated');
-    },
-    onError: () => {
-      toast.error('Failed to update signal');
-    },
-  });
 
   const toggleSignalType = (type: SignalType) => {
     setSelectedSignalTypes((prev) =>
@@ -298,7 +263,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
     </div>
   );
 
-  // Use the aggregated signals for rendering
   const signals = allSignals;
 
   return (
@@ -445,7 +409,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
               <div
                 key={signal.id}
                 onClick={() => router.push(`/signals/${signal.id}`)}
-                className={`group bg-card rounded-lg border-l-4 ${borderColorClass} border border-border/60 transition-all duration-200 hover:shadow-md hover:border-primary/30 cursor-pointer`}
+                className={`group bg-card/90 backdrop-blur-sm rounded-xl border-l-4 ${borderColorClass} border border-border/60 shadow-sm hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer`}
               >
                 <div className="p-5">
                   <div className="flex flex-col lg:flex-row lg:items-start gap-4">
@@ -458,26 +422,26 @@ export default function SignalsClient({ profile }: { profile: any }) {
                           <SignalTypeIcon className="h-3 w-3" />
                           {config.label}
                         </Badge>
-                        <h3 className="font-semibold text-base leading-tight text-foreground line-clamp-2">
+                        <h3 className="font-bold text-lg leading-tight text-foreground line-clamp-2">
                           {signal.title || 'Untitled Signal'}
                         </h3>
                       </div>
 
                       {signal.description && (
-                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                        <p className="text-sm text-foreground/75 line-clamp-2 mb-3">
                           {signal.description}
                         </p>
                       )}
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
                         {signal.company_name && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 font-medium">
                             <Building2 className="h-3 w-3" />
                             {signal.company_name}
                           </span>
                         )}
                         {signal.published_at && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 font-medium">
                             <Calendar className="h-3 w-3" />
                             {new Date(signal.published_at).toLocaleDateString()}
                           </span>
@@ -512,49 +476,20 @@ export default function SignalsClient({ profile }: { profile: any }) {
                       </div>
                     </div>
 
+                    {/* Changed button column: now just "Analyze" */}
                     <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        className="h-9 px-3 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary"
                         onClick={(e) => {
                           e.stopPropagation();
-                          triageMutation.mutate({
-                            id: signal.id,
-                            action: activeTab === 'search' ? 'new' : 'dismissed',
-                          });
+                          router.push(`/signals/${signal.id}`);
                         }}
                       >
-                        {activeTab === 'search' ? (
-                          <>
-                            <Check className="h-4 w-4 mr-1" />
-                            <span className="text-xs hidden sm:inline">Add</span>
-                          </>
-                        ) : (
-                          <>
-                            <X className="h-4 w-4 mr-1" />
-                            <span className="text-xs hidden sm:inline">Dismiss</span>
-                          </>
-                        )}
+                        <ExternalLink className="h-4 w-4" />
+                        <span className="hidden sm:inline">Analyze</span>
                       </Button>
-                      {signal.link && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-muted"
-                          asChild
-                        >
-                          <a
-                            href={signal.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="sr-only">Open link</span>
-                          </a>
-                        </Button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -570,7 +505,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
         </div>
       )}
 
-      {/* Load more button */}
       {hasMore && (
         <div className="flex justify-center pt-4">
           <Button variant="outline" onClick={loadMore} disabled={isLoading}>

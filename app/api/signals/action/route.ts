@@ -9,80 +9,105 @@ export async function POST(req: Request) {
 
   // 1. Auth & Identity
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  console.log("Authenticated user:", user);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    // 2. Fetch the Signal and its AI research (the dossier)
-    const { data: signal, error: signalError } = await supabase
+    // 2. Fetch the signal – try user_signals first, then raw_signals
+    let signal: any = null;
+    let isUserSignal = false;
+
+    const { data: userSignal } = await supabase
       .from('user_signals')
       .select('*')
       .eq('id', signalId)
       .single();
 
-    if (signalError || !signal) {
+    if (userSignal) {
+      signal = userSignal;
+      isUserSignal = true;
+    } else {
+      const { data: rawSignal } = await supabase
+        .from('raw_signals')
+        .select('*')
+        .eq('id', signalId)
+        .single();
+      if (rawSignal) {
+        signal = rawSignal;
+      }
+    }
+
+    if (!signal) {
       return NextResponse.json({ error: 'Signal not found' }, { status: 404 });
     }
 
     if (action === 'promote') {
+      // Use dossier from user_signal if available, else empty
       const dossier = signal.ai_dossier || {};
 
-    // ✅ Get a readable label for the event category
-    const eventLabel = EVENT_CATEGORY_LABELS[signal.event_category] || signal.event_category;
+      // Get a readable label for the event category
+      const eventLabel = EVENT_CATEGORY_LABELS[signal.event_category] || signal.event_category;
 
-    // STEP A: Create the Lead
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .insert({
-        // ... all the lead fields remain identical ...
-        user_id: user.id, 
-        user_signal_id: signal.id,
-        signal_id: signal.raw_signal_id,
-        company_name: signal.company_name,
-        title: signal.title,
-        country: signal.country,
-        lead_category: signal.event_category,       // keep canonical value in DB
-        hotness_score: dossier.hotness_score || signal.match_score,
-        strategic_analysis: dossier.strategic_analysis,
-        trigger_alignment: dossier.trigger_alignment,
-        strategic_hurdles: dossier.hurdles,
-        business_justification: dossier.business_justification,
-        deal_timeline: dossier.estimated_sales_cycle,
-        status: 'new'
-      })
-      .select()
-      .single();
+      // Determine the raw_signal_id
+      const rawSignalId = isUserSignal ? signal.raw_signal_id : signal.id;
 
-    if (leadError) throw new Error(`Lead promotion failed: ${leadError.message}`);
+      // STEP A: Create the Lead
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .insert({
+          user_id: user.id,
+          user_signal_id: isUserSignal ? signal.id : null, // only set if it’s a user_signal
+          signal_id: rawSignalId,
+          company_name: signal.company_name,
+          title: signal.title,
+          country: signal.country,
+          lead_category: signal.event_category,
+          hotness_score: dossier.hotness_score || signal.match_score || 0,
+          strategic_analysis: dossier.strategic_analysis,
+          trigger_alignment: dossier.trigger_alignment,
+          strategic_hurdles: dossier.hurdles,
+          business_justification: dossier.business_justification,
+          deal_timeline: dossier.estimated_sales_cycle,
+          status: 'new',
+        })
+        .select()
+        .single();
 
-    // STEP B: Initialize AI Coach log with the readable event label
-    await supabase.from('ai_coach_logs').insert({
-      lead_id: lead.id,
-      stage: 'outreach',
-      insight: `Analyst Insight: This lead has been qualified based on the ${eventLabel} event. Strategy: Leverage the "${dossier.business_justification}" logic for initial outreach.`,
-      context_data: { 
-        hotness_score: dossier.hotness_score,
-        primary_hurdle: dossier.hurdles 
+      if (leadError) throw new Error(`Lead promotion failed: ${leadError.message}`);
+
+      // STEP B: Initialize AI Coach log
+      await supabase.from('ai_coach_logs').insert({
+        lead_id: lead.id,
+        stage: 'outreach',
+        insight: `Analyst Insight: This lead has been qualified based on the ${eventLabel} event. Strategy: Leverage the "${dossier.business_justification}" logic for initial outreach.`,
+        context_data: {
+          hotness_score: dossier.hotness_score,
+          primary_hurdle: dossier.hurdles,
+        },
+      });
+
+      // STEP C: If we have a user_signal, mark it as promoted
+      if (isUserSignal) {
+        await supabase
+          .from('user_signals')
+          .update({ status: 'promoted' })
+          .eq('id', signalId);
       }
-    });
-
-      // STEP C: Clear the Inbox
-      await supabase
-        .from('user_signals')
-        .update({ status: 'promoted' })
-        .eq('id', signalId);
-
     } else if (action === 'dismiss') {
-      // Archive the signal so it doesn't clutter the firehose
-      await supabase
-        .from('user_signals')
-        .update({ status: 'dismissed' })
-        .eq('id', signalId);
+      if (isUserSignal) {
+        await supabase
+          .from('user_signals')
+          .update({ status: 'dismissed' })
+          .eq('id', signalId);
+      }
+      // If it's a raw signal, we don't store a dismissal record yet (optional future enhancement)
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Action API Error:", error);
-    return NextResponse.json({ error: error.message || "Failed to process action" }, { status: 500 });
+    console.error('Action API Error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to process action' },
+      { status: 500 }
+    );
   }
 }

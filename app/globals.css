@@ -49,18 +49,19 @@
 
 :root {
   /* Deep Space Dark Theme (default) */
+  
   --background: #0a192f;       /* Deep Navy */
-  --foreground: #ccd6f6;       /* Light Gray Text */
+  --foreground: #e2e8f0;       /* Light Gray Text */
   --card: #172a45;             /* Lighter Navy Surface */
-  --card-foreground: #ccd6f6;
+  --card-foreground: #e2e8f0;
   --popover: #172a45;
-  --popover-foreground: #ccd6f6;
+  --popover-foreground: #e2e8f0;
   --primary: #64ffda;          /* Teal/Cyan Accent */
   --primary-foreground: #0a192f;
   --secondary: #1e3a5f;        /* Deeper surface for secondary elements */
-  --secondary-foreground: #ccd6f6;
+  --secondary-foreground: #e2e8f0;
   --muted: #1e3a5f;
-  --muted-foreground: #8892b0; /* Cool Gray */
+  --muted-foreground: #a8b2d1; /* Cool Gray */
   --accent: #64ffda;
   --accent-foreground: #0a192f;
   --destructive: #ff4d4d;
