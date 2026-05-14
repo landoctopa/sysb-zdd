@@ -143,36 +143,3 @@ export async function GET(req: Request) {
   });
 }
 
-export async function POST(req: Request) {
-  const supabase = await createClient();
-  const { raw_signal_id, action } = await req.json();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // Fetch the original signal
-  const { data: raw } = await supabase
-    .from('raw_signals')
-    .select('*')
-    .eq('id', raw_signal_id)
-    .single();
-
-  if (!raw) return NextResponse.json({ error: 'Signal not found' }, { status: 404 });
-
-  // Upsert user_signal (ignore duplicates)
-  const { error } = await supabase.from('user_signals').upsert({
-    user_id: user.id,
-    raw_signal_id: raw.id,
-    status: action === 'dismissed' ? 'dismissed' : 'new',
-    title: raw.title,                   // <- copy title
-    description: raw.description,
-    company_name: raw.company_name,
-    country: raw.country,
-    sectors: raw.sectors,
-    event_category: raw.event_category,
-    link: raw.link,
-    published_at: raw.published_at,
-  }, { onConflict: 'user_id,raw_signal_id' });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
-}

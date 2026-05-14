@@ -538,6 +538,7 @@ export type Database = {
           match_score: number | null
           raw_signal_id: string | null
           sectors: string[] | null
+          source: string | null
           status: string | null
           title: string | null
           user_id: string
@@ -556,6 +557,7 @@ export type Database = {
           match_score?: number | null
           raw_signal_id?: string | null
           sectors?: string[] | null
+          source?: string | null
           status?: string | null
           title?: string | null
           user_id: string
@@ -574,6 +576,7 @@ export type Database = {
           match_score?: number | null
           raw_signal_id?: string | null
           sectors?: string[] | null
+          source?: string | null
           status?: string | null
           title?: string | null
           user_id?: string

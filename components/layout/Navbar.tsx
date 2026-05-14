@@ -38,6 +38,7 @@ export function Navbar() {
 
   const navLinks = [
     { href: '/signals', label: 'Signals' },
+    { href: '/potentials', label: 'Potentials' },
     { href: '/leads', label: 'Leads' },
     { href: '/settings', label: 'Settings' },
   ];

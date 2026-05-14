@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
-import ManualSignalModal from '@/components/signals/ManualSignalModal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,15 +34,17 @@ import {
 import { SECTOR_LABELS, EVENT_CATEGORY_LABELS } from '@/utils/constants';
 import { COUNTRY_LABELS } from '@/utils/countries';
 import { Database } from '../../database.types';
+import { copyRawToPotential } from '@/app/actions/potentialActions';
+import { toast } from 'sonner';
 
 type RawSignal = Database['public']['Tables']['raw_signals']['Row'];
 type UserSignal = Database['public']['Tables']['user_signals']['Row'];
 type SignalType = Database['public']['Enums']['signal_category'];
 
 type ExtendedSignal = (RawSignal | UserSignal) & {
-  signal_type?: SignalType | null;   // exists only on RawSignal
-  published_at?: string | null;     // exists only on RawSignal
-  status?: string;                  // already present in both, but made explicit
+  signal_type?: SignalType | null;
+  published_at?: string | null;
+  status?: string;
 };
 
 interface SignalTypeConfig {
@@ -143,9 +144,9 @@ export default function SignalsClient({ profile }: { profile: any }) {
   const [activeTab, setActiveTab] = useState<'inbox' | 'search' | 'viewed'>('inbox');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSignalTypes, setSelectedSignalTypes] = useState<SignalType[]>([]);
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   const [offset, setOffset] = useState(0);
   const [allSignals, setAllSignals] = useState<ExtendedSignal[]>([]);
@@ -204,6 +205,20 @@ export default function SignalsClient({ profile }: { profile: any }) {
   };
 
   const activeFilterCount = selectedSignalTypes.length;
+
+  const handleSignalClick = (signal: ExtendedSignal) => {
+    const signalType = signal.signal_type || 'Company News';
+    // Only actionable if it's Company News
+    if (signalType !== 'Company News') return;
+
+    // Show loading toast
+    toast.loading('Analyzing signal...', { id: 'copy-potential' });
+    startTransition(() => {
+      copyRawToPotential(signal.id).catch((err) => {
+        toast.error(err.message || 'Failed to copy signal', { id: 'copy-potential' });
+      });
+    });
+  };
 
   const LoadingSkeleton = () => (
     <div className="space-y-4">
@@ -281,13 +296,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
             Curated opportunities matched to your ideal customer profile
           </p>
         </div>
-        <Button
-          onClick={() => setIsManualModalOpen(true)}
-          className="shadow-sm gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Signal
-        </Button>
       </div>
 
       {/* Tabs & Filters */}
@@ -404,78 +412,80 @@ export default function SignalsClient({ profile }: { profile: any }) {
           <LoadingSkeleton />
         ) : signals.length === 0 ? (
           <EmptyState />
-        ) :
-          (
-            signals.map((signal) => {
-              const signalType = signal.signal_type || 'Company News';
-              const config = getSignalTypeConfig(signalType);
-              const SignalTypeIcon = config.icon;
-              const borderColorClass = config.borderColor;
-              const isActionable = signalType === 'Company News';
+        ) : (
+          signals.map((signal) => {
+            const signalType = signal.signal_type || 'Company News';
+            const config = getSignalTypeConfig(signalType);
+            const SignalTypeIcon = config.icon;
+            const borderColorClass = config.borderColor;
+            const isActionable = signalType === 'Company News';
 
-              return (
-                <div
-                  key={signal.id}
-                  onClick={isActionable ? () => router.push(`/signals/${signal.id}`) : undefined}
-                  className={`group bg-card/90 backdrop-blur-sm rounded-xl border-l-4 ${borderColorClass} border border-border/60 ${isActionable ? 'shadow-sm hover:shadow-xl hover:border-primary/50 cursor-pointer' : 'cursor-default'
-                    } transition-all duration-200`}
-                >
-                  <div className="p-5">
-                    <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                      <div className="flex-1 min-w-0">
-                        {/* ... signal type badge, title, description, metadata, sector/event badges (unchanged) ... */}
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
+            return (
+              <div
+                key={signal.id}
+                onClick={() => isActionable && handleSignalClick(signal)}
+                className={`group bg-card/90 backdrop-blur-sm rounded-xl border-l-4 ${borderColorClass} border border-border/60 ${
+                  isActionable
+                    ? 'shadow-sm hover:shadow-xl hover:border-primary/50 cursor-pointer'
+                    : 'cursor-default'
+                } transition-all duration-200`}
+              >
+                <div className="p-5">
+                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <Badge
+                          variant="outline"
+                          className={`text-[11px] font-semibold px-2 py-0.5 gap-1 border ${config.color}`}
+                        >
+                          <SignalTypeIcon className="h-3 w-3" />
+                          {config.label}
+                        </Badge>
+                        <h3 className="font-bold text-lg leading-tight text-foreground line-clamp-2">
+                          {signal.title || 'Untitled Signal'}
+                        </h3>
+                      </div>
+
+                      {signal.description && (
+                        <p className="text-sm text-foreground/75 line-clamp-2 mb-3">
+                          {signal.description}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
+                        {signal.company_name && (
+                          <span className="flex items-center gap-1 font-medium">
+                            <Building2 className="h-3 w-3" />
+                            {signal.company_name}
+                          </span>
+                        )}
+                        {signal.published_at && (
+                          <span className="flex items-center gap-1 font-medium">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(signal.published_at).toLocaleDateString()}
+                          </span>
+                        )}
+                        {signal.country && (
+                          <span className="flex items-center gap-1 font-medium">
+                            <Globe className="h-3 w-3" />
+                            {getCountryLabel(signal.country)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        {signal.event_category && (
                           <Badge
                             variant="outline"
-                            className={`text-[11px] font-semibold px-2 py-0.5 gap-1 border ${config.color}`}
+                            className={`text-[11px] font-medium px-2 py-0.5 border ${getEventCategoryStyle(
+                              signal.event_category
+                            )}`}
                           >
-                            <SignalTypeIcon className="h-3 w-3" />
-                            {config.label}
+                            {getEventCategoryLabel(signal.event_category)}
                           </Badge>
-                          <h3 className="font-bold text-lg leading-tight text-foreground line-clamp-2">
-                            {signal.title || 'Untitled Signal'}
-                          </h3>
-                        </div>
-
-                        {signal.description && (
-                          <p className="text-sm text-foreground/75 line-clamp-2 mb-3">
-                            {signal.description}
-                          </p>
                         )}
-
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
-                          {signal.company_name && (
-                            <span className="flex items-center gap-1 font-medium">
-                              <Building2 className="h-3 w-3" />
-                              {signal.company_name}
-                            </span>
-                          )}
-                          {signal.published_at && (
-                            <span className="flex items-center gap-1 font-medium">
-                              <Calendar className="h-3 w-3" />
-                              {new Date(signal.published_at).toLocaleDateString()}
-                            </span>
-                          )}
-                          {signal.country && (
-                            <span className="flex items-center gap-1 font-medium">
-                              <Globe className="h-3 w-3" />
-                              {getCountryLabel(signal.country)}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          {signal.event_category && (
-                            <Badge
-                              variant="outline"
-                              className={`text-[11px] font-medium px-2 py-0.5 border ${getEventCategoryStyle(
-                                signal.event_category
-                              )}`}
-                            >
-                              {getEventCategoryLabel(signal.event_category)}
-                            </Badge>
-                          )}
-                          {signal.sectors && [...new Set(signal.sectors)].slice(0, 2).map((s) => (
+                        {signal.sectors &&
+                          [...new Set(signal.sectors)].slice(0, 2).map((s) => (
                             <Badge
                               key={s}
                               variant="secondary"
@@ -484,55 +494,60 @@ export default function SignalsClient({ profile }: { profile: any }) {
                               {getSectorLabel(s)}
                             </Badge>
                           ))}
-                          {signal.sectors && signal.sectors.length > 2 && (
-                            <span className="text-[10px] text-muted-foreground">
-                              +{signal.sectors.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
-                        {signal.link && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted"
-                            asChild
-                          >
-                            <a
-                              href={signal.link}
-                              target="_blank"
-                              rel="noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                              <span className="sr-only">Open source</span>
-                            </a>
-                          </Button>
-                        )}
-                        {isActionable && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 px-3 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/signals/${signal.id}`);
-                            }}
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            <span className="hidden sm:inline">Details</span>
-                          </Button>
+                        {signal.sectors && signal.sectors.length > 2 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            +{signal.sectors.length - 2}
+                          </span>
                         )}
                       </div>
                     </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
+                      {signal.link && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          asChild
+                        >
+                          <a
+                            href={signal.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            <span className="sr-only">Open source</span>
+                          </a>
+                        </Button>
+                      )}
+                      {isActionable && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 px-3 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSignalClick(signal);
+                          }}
+                          disabled={isPending}
+                        >
+                          {isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ExternalLink className="h-4 w-4" />
+                          )}
+                          <span className="hidden sm:inline">Analyze</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              );
-            })
-          )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {signals.length > 0 && (searchQuery || selectedSignalTypes.length > 0) && (
@@ -556,7 +571,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
         </div>
       )}
 
-      <ManualSignalModal open={isManualModalOpen} onOpenChange={setIsManualModalOpen} />
     </div>
   );
 }
