@@ -38,8 +38,12 @@ export default function DossierClient({ signalId, initialDossier }: DossierClien
       });
       if (!res.ok) throw new Error('Action failed');
 
-      toast.success(action === 'promote' ? 'Converted to Active Lead' : 'Signal Dismissed');
-      window.location.href = '/signals';
+      const data = await res.json();
+      if (action === 'promote' && data.leadId) {
+        window.location.href = `/leads/${data.leadId}`;
+      } else {
+        window.location.href = '/signals';
+      }
     } catch (err) {
       toast.error('Could not process signal action.');
     } finally {

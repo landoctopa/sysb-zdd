@@ -260,7 +260,7 @@ export type Database = {
           relevant_case_study: string | null
           sales_points: string[] | null
           signal_id: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["lead_status"] | null
           strategic_analysis: string | null
           strategic_hurdles: string | null
           title: string | null
@@ -291,7 +291,7 @@ export type Database = {
           relevant_case_study?: string | null
           sales_points?: string[] | null
           signal_id?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["lead_status"] | null
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
           title?: string | null
@@ -322,7 +322,7 @@ export type Database = {
           relevant_case_study?: string | null
           sales_points?: string[] | null
           signal_id?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["lead_status"] | null
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
           title?: string | null
@@ -608,6 +608,13 @@ export type Database = {
         | "company_news"
         | "events_meetups"
         | "other"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "proposal"
+        | "negotiation"
+        | "won"
+        | "lost"
       signal_category:
         | "Company News"
         | "Industry Trend"
@@ -752,6 +759,14 @@ export const Constants = {
         "company_news",
         "events_meetups",
         "other",
+      ],
+      lead_status: [
+        "new",
+        "contacted",
+        "proposal",
+        "negotiation",
+        "won",
+        "lost",
       ],
       signal_category: [
         "Company News",

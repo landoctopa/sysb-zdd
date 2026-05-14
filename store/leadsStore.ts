@@ -1,76 +1,103 @@
+// store/leadsStore.ts
 import { atom } from 'nanostores';
-import { Database } from '../database.types'; 
+import { Database } from '../database.types';
 import { toast } from 'sonner';
 
-// 1. Map all Database Types
+// Re-export all row types for convenience
 export type LeadRow = Database['public']['Tables']['leads']['Row'];
 export type ContactRow = Database['public']['Tables']['contacts']['Row'];
 export type TaskRow = Database['public']['Tables']['tasks']['Row'];
 export type CoachLogRow = Database['public']['Tables']['ai_coach_logs']['Row'];
 export type CommunicationRow = Database['public']['Tables']['communications']['Row'];
 
-// --- Atoms ---
+// Lead status type from database enum (if generated) or fallback to string
+export type LeadStatus = LeadRow['status']; // This will be the enum type
 
+// --- Atoms ---
 export const $leadsList = atom<LeadRow[]>([]);
 export const $activeLead = atom<LeadRow | null>(null);
 export const $activeContacts = atom<ContactRow[]>([]);
 export const $activeTasks = atom<TaskRow[]>([]);
 export const $activeCoachLogs = atom<CoachLogRow[]>([]);
 export const $activeCommunications = atom<CommunicationRow[]>([]);
-
 export const $isSyncing = atom<boolean>(false);
 
-// --- Actions (Standard Functions) ---
+// --- Helper: Update lead metadata (ai_coach_state) ---
+export async function updateLeadMetadata(leadId: string, answers: Record<string, any>) {
+  const lead = $activeLead.get();
+  if (!lead || lead.id !== leadId) return;
 
-/**
- * Optimistically updates the lead status and syncs with the backend.
- * In Nanostores 1.x, we just use a regular function that calls .set() and .get()
- */
-export async function updateLeadStatus(newStatus: LeadRow['status']) {
+  const optimisticState = {
+    ...(lead.ai_coach_state as any || {}),
+    answers: {
+      ...((lead.ai_coach_state as any)?.answers || {}),
+      ...answers,
+    },
+  };
+
+  // Optimistic update
+  $activeLead.set({ ...lead, ai_coach_state: optimisticState });
+
+  try {
+    const res = await fetch(`/api/leads/${leadId}/metadata`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answers }),
+    });
+    if (!res.ok) throw new Error('Failed to update metadata');
+    toast.success('Information saved');
+  } catch (error) {
+    // Rollback
+    $activeLead.set(lead);
+    toast.error('Could not save information');
+  }
+}
+
+// --- Action: Update lead status (with optimistic update) ---
+export async function updateLeadStatus(newStatus: LeadStatus) {
   const lead = $activeLead.get();
   if (!lead) return;
 
   const oldStatus = lead.status;
   const currentList = $leadsList.get();
 
-  // 1. OPTIMISTIC UPDATE
-  // We update the atoms directly using .set()
+  // Optimistic update
   $activeLead.set({ ...lead, status: newStatus });
-  
   $leadsList.set(
     currentList.map(l => l.id === lead.id ? { ...l, status: newStatus } : l)
   );
-
   $isSyncing.set(true);
 
   try {
-    // 2. BACKEND SYNC
     const res = await fetch(`/api/leads/${lead.id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
-
     if (!res.ok) throw new Error('Sync failed');
-
     toast.success(`Stage updated to ${newStatus}`);
   } catch (error) {
-    // 3. ROLLBACK: Revert if the server fails
+    // Rollback
     $activeLead.set({ ...lead, status: oldStatus });
     $leadsList.set(
       currentList.map(l => l.id === lead.id ? { ...l, status: oldStatus } : l)
     );
-    
     toast.error('Failed to sync. Reverting stage.');
   } finally {
     $isSyncing.set(false);
   }
 }
 
-export async function addCommunication(leadId: string, commData: any) {
+// --- Action: Add communication (optimistic) ---
+export async function addCommunication(leadId: string, commData: Partial<CommunicationRow>) {
   const currentComms = $activeCommunications.get();
   const tempId = `temp-${Date.now()}`;
-  const optimisticComm = { id: tempId, ...commData, lead_id: leadId, created_at: new Date().toISOString() };
+  const optimisticComm = {
+    id: tempId,
+    ...commData,
+    lead_id: leadId,
+    created_at: new Date().toISOString(),
+  } as CommunicationRow;
   $activeCommunications.set([optimisticComm, ...currentComms]);
 
   try {
@@ -84,17 +111,22 @@ export async function addCommunication(leadId: string, commData: any) {
     $activeCommunications.set([newComm, ...currentComms]);
     return newComm;
   } catch (err) {
-    // rollback
     $activeCommunications.set(currentComms);
     toast.error('Failed to log communication');
     throw err;
   }
 }
 
-export async function addTask(leadId: string, taskData: any) {
+// --- Action: Add task (optimistic) ---
+export async function addTask(leadId: string, taskData: Partial<TaskRow>) {
   const currentTasks = $activeTasks.get();
   const tempId = `temp-${Date.now()}`;
-  const optimisticTask = { id: tempId, ...taskData, lead_id: leadId, created_at: new Date().toISOString() };
+  const optimisticTask = {
+    id: tempId,
+    ...taskData,
+    lead_id: leadId,
+    created_at: new Date().toISOString(),
+  } as TaskRow;
   $activeTasks.set([optimisticTask, ...currentTasks]);
 
   try {
@@ -111,5 +143,32 @@ export async function addTask(leadId: string, taskData: any) {
     $activeTasks.set(currentTasks);
     toast.error('Failed to add task');
     throw err;
+  }
+}
+
+// --- Action: Toggle task completion (optimistic) ---
+export async function toggleTaskCompletion(taskId: string, completed: boolean) {
+  const currentTasks = $activeTasks.get();
+  const task = currentTasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const newStatus = completed ? 'completed' : 'pending';
+  const updatedTasks = currentTasks.map(t =>
+    t.id === taskId ? { ...t, status: newStatus } : t
+  );
+  $activeTasks.set(updatedTasks);
+
+  try {
+    const res = await fetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (!res.ok) throw new Error();
+    toast.success(completed ? 'Task completed' : 'Task reopened');
+  } catch (err) {
+    // Rollback
+    $activeTasks.set(currentTasks);
+    toast.error('Failed to update task');
   }
 }
