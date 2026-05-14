@@ -84,5 +84,26 @@ export const EVENT_CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const USER_SIGNAL_STATUS = [
-    // populate this 
+   'new','promoted', 'dismissed'
 ]
+
+export const LEAD_STAGES = [
+  'new',
+  'contacted',
+  'proposal',
+  'negotiation',
+  'won',
+  'lost',
+] as const;
+
+export type LeadStage = typeof LEAD_STAGES[number];
+
+// Optional: human-readable labels
+export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
+  new: 'New',
+  contacted: 'Contacted',
+  proposal: 'Proposal',
+  negotiation: 'Negotiation',
+  won: 'Won',
+  lost: 'Lost',
+};

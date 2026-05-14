@@ -247,10 +247,10 @@ export default function SignalsClient({ profile }: { profile: any }) {
         {searchQuery || selectedSignalTypes.length > 0
           ? 'Try adjusting your filters or search term.'
           : activeTab === 'inbox'
-          ? 'Your inbox is empty. Browse the Firehose or add a manual signal.'
-          : activeTab === 'search'
-          ? 'No signals available in the global feed at the moment.'
-          : 'You haven’t viewed or dismissed any signals yet.'}
+            ? 'Your inbox is empty. Browse the Firehose or add a manual signal.'
+            : activeTab === 'search'
+              ? 'No signals available in the global feed at the moment.'
+              : 'You haven’t viewed or dismissed any signals yet.'}
       </p>
       {(searchQuery || selectedSignalTypes.length > 0) && (
         <Button variant="outline" onClick={clearFilters} className="mt-4">
@@ -404,128 +404,135 @@ export default function SignalsClient({ profile }: { profile: any }) {
           <LoadingSkeleton />
         ) : signals.length === 0 ? (
           <EmptyState />
-        ) : (
-          signals.map((signal) => {
-            const signalType = signal.signal_type || 'Company News';
-            const config = getSignalTypeConfig(signalType);
-            const SignalTypeIcon = config.icon;
-            const borderColorClass = config.borderColor;
+        ) :
+          (
+            signals.map((signal) => {
+              const signalType = signal.signal_type || 'Company News';
+              const config = getSignalTypeConfig(signalType);
+              const SignalTypeIcon = config.icon;
+              const borderColorClass = config.borderColor;
+              const isActionable = signalType === 'Company News';
 
-            return (
-              <div
-                key={signal.id}
-                onClick={() => router.push(`/signals/${signal.id}`)}
-                className={`group bg-card/90 backdrop-blur-sm rounded-xl border-l-4 ${borderColorClass} border border-border/60 shadow-sm hover:shadow-xl hover:border-primary/50 transition-all duration-200 cursor-pointer`}
-              >
-                <div className="p-5">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <Badge
-                          variant="outline"
-                          className={`text-[11px] font-semibold px-2 py-0.5 gap-1 border ${config.color}`}
-                        >
-                          <SignalTypeIcon className="h-3 w-3" />
-                          {config.label}
-                        </Badge>
-                        <h3 className="font-bold text-lg leading-tight text-foreground line-clamp-2">
-                          {signal.title || 'Untitled Signal'}
-                        </h3>
-                      </div>
-
-                      {signal.description && (
-                        <p className="text-sm text-foreground/75 line-clamp-2 mb-3">
-                          {signal.description}
-                        </p>
-                      )}
-
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
-                        {signal.company_name && (
-                          <span className="flex items-center gap-1 font-medium">
-                            <Building2 className="h-3 w-3" />
-                            {signal.company_name}
-                          </span>
-                        )}
-                        {signal.published_at && (
-                          <span className="flex items-center gap-1 font-medium">
-                            <Calendar className="h-3 w-3" />
-                            {new Date(signal.published_at).toLocaleDateString()}
-                          </span>
-                        )}
-                        {signal.country && (
-                          <span className="flex items-center gap-1 font-medium">
-                            <Globe className="h-3 w-3" />
-                            {getCountryLabel(signal.country)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {signal.event_category && (
+              return (
+                <div
+                  key={signal.id}
+                  onClick={isActionable ? () => router.push(`/signals/${signal.id}`) : undefined}
+                  className={`group bg-card/90 backdrop-blur-sm rounded-xl border-l-4 ${borderColorClass} border border-border/60 ${isActionable ? 'shadow-sm hover:shadow-xl hover:border-primary/50 cursor-pointer' : 'cursor-default'
+                    } transition-all duration-200`}
+                >
+                  <div className="p-5">
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                      <div className="flex-1 min-w-0">
+                        {/* ... signal type badge, title, description, metadata, sector/event badges (unchanged) ... */}
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           <Badge
                             variant="outline"
-                            className={`text-[11px] font-medium px-2 py-0.5 border ${getEventCategoryStyle(
-                              signal.event_category
-                            )}`}
+                            className={`text-[11px] font-semibold px-2 py-0.5 gap-1 border ${config.color}`}
                           >
-                            {getEventCategoryLabel(signal.event_category)}
+                            <SignalTypeIcon className="h-3 w-3" />
+                            {config.label}
                           </Badge>
-                        )}
-                        {signal.sectors && [...new Set(signal.sectors)].slice(0, 2).map((s) => (
-                          <Badge
-                            key={s}
-                            variant="secondary"
-                            className="text-[10px] px-2 py-0.5 bg-muted/60 text-muted-foreground font-normal"
-                          >
-                            {getSectorLabel(s)}
-                          </Badge>
-                        ))}
-                        {signal.sectors && signal.sectors.length > 2 && (
-                          <span className="text-[10px] text-muted-foreground">
-                            +{signal.sectors.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                          <h3 className="font-bold text-lg leading-tight text-foreground line-clamp-2">
+                            {signal.title || 'Untitled Signal'}
+                          </h3>
+                        </div>
 
-                    <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
-                      {signal.link && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted"
-                          asChild
-                        >
-                          <a
-                            href={signal.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
+                        {signal.description && (
+                          <p className="text-sm text-foreground/75 line-clamp-2 mb-3">
+                            {signal.description}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
+                          {signal.company_name && (
+                            <span className="flex items-center gap-1 font-medium">
+                              <Building2 className="h-3 w-3" />
+                              {signal.company_name}
+                            </span>
+                          )}
+                          {signal.published_at && (
+                            <span className="flex items-center gap-1 font-medium">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(signal.published_at).toLocaleDateString()}
+                            </span>
+                          )}
+                          {signal.country && (
+                            <span className="flex items-center gap-1 font-medium">
+                              <Globe className="h-3 w-3" />
+                              {getCountryLabel(signal.country)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {signal.event_category && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[11px] font-medium px-2 py-0.5 border ${getEventCategoryStyle(
+                                signal.event_category
+                              )}`}
+                            >
+                              {getEventCategoryLabel(signal.event_category)}
+                            </Badge>
+                          )}
+                          {signal.sectors && [...new Set(signal.sectors)].slice(0, 2).map((s) => (
+                            <Badge
+                              key={s}
+                              variant="secondary"
+                              className="text-[10px] px-2 py-0.5 bg-muted/60 text-muted-foreground font-normal"
+                            >
+                              {getSectorLabel(s)}
+                            </Badge>
+                          ))}
+                          {signal.sectors && signal.sectors.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{signal.sectors.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1 shrink-0 ml-auto lg:ml-0">
+                        {signal.link && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted"
+                            asChild
+                          >
+                            <a
+                              href={signal.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                              <span className="sr-only">Open source</span>
+                            </a>
+                          </Button>
+                        )}
+                        {isActionable && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 px-3 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/signals/${signal.id}`);
+                            }}
                           >
                             <ExternalLink className="h-4 w-4" />
-                            <span className="sr-only">Open source</span>
-                          </a>
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 px-3 font-semibold gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/signals/${signal.id}`);
-                        }}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        <span className="hidden sm:inline">Details</span>
-                      </Button>
+                            <span className="hidden sm:inline">Details</span>
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
       </div>
 
       {signals.length > 0 && (searchQuery || selectedSignalTypes.length > 0) && (
