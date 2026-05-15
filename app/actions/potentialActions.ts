@@ -5,11 +5,16 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-// Helper: Generate dossier via DeepSeek
-async function generateDossierForRawSignal(
-  raw: any,
-  profile: any
-) {
+// Helper: Generate dossier via DeepSeek (shared)
+async function generateDossierForRawSignal(raw: any, profile: any) {
+  console.log('[Dossier] Starting generation for:', raw.title);
+  console.log('[Dossier] Raw signal data:', {
+    company_name: raw.company_name,
+    title: raw.title,
+    description: raw.description?.substring(0, 100),
+    event_category: raw.event_category,
+  });
+
   const prompt = `
 You are a Senior Strategic Analyst for ${profile.full_name}.
 
@@ -39,6 +44,7 @@ Provide an internal strategic briefing in JSON format with these exact keys:
 Output ONLY valid JSON.
 `;
 
+  console.log('[Dossier] Calling DeepSeek API...');
   const res = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
@@ -55,41 +61,111 @@ Output ONLY valid JSON.
     }),
   });
 
-  if (!res.ok) throw new Error(`DeepSeek API error: ${res.statusText}`);
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('[Dossier] DeepSeek API error:', res.status, errorText);
+    throw new Error(`DeepSeek API error: ${res.status} ${errorText}`);
+  }
+
   const data = await res.json();
-  return JSON.parse(data.choices[0].message.content);
+  console.log('[Dossier] DeepSeek response received');
+  const dossier = JSON.parse(data.choices[0].message.content);
+  console.log('[Dossier] Parsed dossier:', dossier);
+  return dossier;
 }
 
 /**
- * Copy a raw signal to user_signals (potential), generate dossier, and redirect to potential detail page.
+ * Copy a raw signal to user_signals (potential), generate dossier, and redirect.
  */
 export async function copyRawToPotential(rawSignalId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    // 1. Fetch raw signal
+    const { data: raw, error: rawError } = await supabase
+      .from('raw_signals')
+      .select('*')
+      .eq('id', rawSignalId)
+      .single();
+    if (rawError || !raw) throw new Error('Raw signal not found');
+
+    // 2. Check if already copied
+    const { data: existing } = await supabase
+      .from('user_signals')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('raw_signal_id', raw.id)
+      .single();
+    if (existing) {
+      redirect(`/potentials/${existing.id}`);
+    }
+
+    // 3. Fetch user profile for dossier context
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name, description, offerings, past_projects, ideal_customer_profile')
+      .eq('id', user.id)
+      .single();
+    if (profileError || !profile) throw new Error('Profile not found');
+
+    // 4. Generate dossier
+    const dossier = await generateDossierForRawSignal(raw, profile);
+
+    // 5. Insert into user_signals (no published_at column)
+    const { data: newPotential, error: insertError } = await supabase
+      .from('user_signals')
+      .insert({
+        user_id: user.id,
+        raw_signal_id: raw.id,
+        title: raw.title,
+        description: raw.description,
+        company_name: raw.company_name,
+        country: raw.country,
+        sectors: raw.sectors,
+        event_category: raw.event_category,
+        link: raw.link,
+        status: 'new',
+        ai_dossier: dossier,
+        match_score: dossier.hotness_score,
+        source: 'raw',
+      })
+      .select()
+      .single();
+
+    if (insertError) throw new Error(`Failed to copy signal: ${insertError.message}`);
+
+    // 6. Redirect to potential detail page
+    redirect(`/potentials/${newPotential.id}`);
+  } catch (err) {
+    // If it's a redirect, rethrow it (let Next.js handle it)
+    if (err && typeof err === 'object' && 'digest' in err && (err as any).digest?.startsWith('NEXT_REDIRECT')) {
+      throw err;
+    }
+    console.error('[copyRawToPotential] Error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Regenerate dossier for an existing potential (e.g., if it failed or is empty)
+ */
+export async function regenerateDossier(potentialId: string) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) throw new Error('Unauthorized');
 
-  // Fetch raw signal
-  const { data: raw, error: rawError } = await supabase
-    .from('raw_signals')
-    .select('*')
-    .eq('id', rawSignalId)
-    .single();
-  if (rawError || !raw) throw new Error('Raw signal not found');
-
-  // Check if already copied
-  const { data: existing } = await supabase
+  // Fetch potential
+  const { data: potential, error: fetchError } = await supabase
     .from('user_signals')
-    .select('id')
+    .select('*')
+    .eq('id', potentialId)
     .eq('user_id', user.id)
-    .eq('raw_signal_id', raw.id)
     .single();
+  if (fetchError || !potential) throw new Error('Potential not found');
 
-  if (existing) {
-    // Already exists, just go to that potential
-    redirect(`/potentials/${existing.id}`);
-  }
-
-  // Fetch profile for dossier generation
+  // Fetch profile
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('full_name, description, offerings, past_projects, ideal_customer_profile')
@@ -97,39 +173,31 @@ export async function copyRawToPotential(rawSignalId: string) {
     .single();
   if (profileError || !profile) throw new Error('Profile not found');
 
-  // Generate dossier (may take a few seconds)
-  const dossier = await generateDossierForRawSignal(raw, profile);
+  // Build raw-like object from potential (or use its own raw_signal_id if needed)
+  const rawLike = {
+    company_name: potential.company_name,
+    title: potential.title,
+    description: potential.description,
+    event_category: potential.event_category,
+  };
+  const dossier = await generateDossierForRawSignal(rawLike, profile);
 
-  // Create user_signal with dossier
-  const { data: newPotential, error: insertError } = await supabase
+  // Update potential with new dossier
+  const { error: updateError } = await supabase
     .from('user_signals')
-    .insert({
-      user_id: user.id,
-      raw_signal_id: raw.id,
-      title: raw.title,
-      description: raw.description,
-      company_name: raw.company_name,
-      country: raw.country,
-      sectors: raw.sectors,
-      event_category: raw.event_category,
-      link: raw.link,
-      published_at: raw.published_at,
-      status: 'new',
+    .update({
       ai_dossier: dossier,
       match_score: dossier.hotness_score,
     })
-    .select()
-    .single();
+    .eq('id', potential.id);
 
-  if (insertError) throw new Error(`Failed to copy signal: ${insertError.message}`);
+  if (updateError) throw new Error(`Failed to regenerate dossier: ${updateError.message}`);
 
-  // Redirect to the new potential detail page
-  redirect(`/potentials/${newPotential.id}`);
+  return { success: true };
 }
 
 /**
  * Promote a potential (user_signal) to a lead.
- * Requires that the potential already has an ai_dossier.
  */
 export async function promotePotential(potentialId: string) {
   const supabase = await createClient();
@@ -143,7 +211,6 @@ export async function promotePotential(potentialId: string) {
     .eq('id', potentialId)
     .eq('user_id', user.id)
     .single();
-
   if (fetchError || !potential) throw new Error('Potential not found');
   if (!potential.ai_dossier || Object.keys(potential.ai_dossier).length === 0) {
     throw new Error('Dossier not generated yet');
@@ -237,7 +304,7 @@ export async function createManualPotential(formData: {
     .single();
   if (profileError || !profile) throw new Error('Profile not found');
 
-  // Generate dossier using the same helper (needs a raw-like object)
+  // Generate dossier using a raw-like object
   const rawLike = {
     company_name: formData.company_name,
     title: formData.title,
@@ -268,6 +335,5 @@ export async function createManualPotential(formData: {
 
   if (insertError) throw new Error(`Failed to create manual potential: ${insertError.message}`);
 
-  // Redirect to the potential detail page
   redirect(`/potentials/${newPotential.id}`);
 }
