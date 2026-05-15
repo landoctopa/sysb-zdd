@@ -7,12 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Search as SearchIcon,
-  Plus,
   ExternalLink,
   Loader2,
-  Inbox,
   Globe,
-  Eye,
   Filter,
   Building2,
   TrendingUp,
@@ -20,6 +17,7 @@ import {
   Shield,
   Newspaper,
   XCircle,
+  ListFilter,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
@@ -38,13 +36,10 @@ import { copyRawToPotential } from '@/app/actions/potentialActions';
 import { toast } from 'sonner';
 
 type RawSignal = Database['public']['Tables']['raw_signals']['Row'];
-type UserSignal = Database['public']['Tables']['user_signals']['Row'];
 type SignalType = Database['public']['Enums']['signal_category'];
 
-type ExtendedSignal = (RawSignal | UserSignal) & {
+type ExtendedSignal = RawSignal & {
   signal_type?: SignalType | null;
-  published_at?: string | null;
-  status?: string;
 };
 
 interface SignalTypeConfig {
@@ -52,7 +47,6 @@ interface SignalTypeConfig {
   icon: React.ElementType;
   color: string;
   borderColor: string;
-  badgeColor: string;
   description: string;
 }
 
@@ -62,7 +56,6 @@ const SIGNAL_TYPES: Record<SignalType, SignalTypeConfig> = {
     icon: Newspaper,
     color: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     borderColor: 'border-l-blue-500',
-    badgeColor: 'bg-blue-500',
     description: 'Mergers, acquisitions, funding, product launches',
   },
   'Industry Trend': {
@@ -70,7 +63,6 @@ const SIGNAL_TYPES: Record<SignalType, SignalTypeConfig> = {
     icon: TrendingUp,
     color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     borderColor: 'border-l-emerald-500',
-    badgeColor: 'bg-emerald-500',
     description: 'Market shifts, emerging technologies, sector movements',
   },
   'Events/Meetups': {
@@ -78,7 +70,6 @@ const SIGNAL_TYPES: Record<SignalType, SignalTypeConfig> = {
     icon: Calendar,
     color: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
     borderColor: 'border-l-purple-500',
-    badgeColor: 'bg-purple-500',
     description: 'Conferences, webinars, networking opportunities',
   },
   'Regulatory/Government': {
@@ -86,7 +77,6 @@ const SIGNAL_TYPES: Record<SignalType, SignalTypeConfig> = {
     icon: Shield,
     color: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
     borderColor: 'border-l-amber-500',
-    badgeColor: 'bg-amber-500',
     description: 'Policy changes, compliance updates, government initiatives',
   },
 };
@@ -124,9 +114,7 @@ const getSectorLabel = (sector: string) => SECTOR_LABELS[sector] || sector;
 const getCountryLabel = (code: string | null) =>
   code ? COUNTRY_LABELS[code] || code.toUpperCase() : 'Not specified';
 
-const getSignalTypeConfig = (
-  signalType: SignalType | null
-): SignalTypeConfig => {
+const getSignalTypeConfig = (signalType: SignalType | null): SignalTypeConfig => {
   if (signalType && SIGNAL_TYPES[signalType]) {
     return SIGNAL_TYPES[signalType];
   }
@@ -135,15 +123,22 @@ const getSignalTypeConfig = (
     icon: Newspaper,
     color: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
     borderColor: 'border-l-gray-500',
-    badgeColor: 'bg-gray-500',
     description: 'General company news',
   };
 };
 
+// Map tab to signal type filters
+const tabToSignalTypes: Record<string, SignalType[]> = {
+  matched: ['Company News'],
+  trends: ['Industry Trend', 'Regulatory/Government'],
+  events: ['Events/Meetups'],
+};
+
 export default function SignalsClient({ profile }: { profile: any }) {
-  const [activeTab, setActiveTab] = useState<'inbox' | 'search' | 'viewed'>('inbox');
+  const [activeTab, setActiveTab] = useState<'matched' | 'trends' | 'events'>('matched');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSignalTypes, setSelectedSignalTypes] = useState<SignalType[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [selectedEventCategories, setSelectedEventCategories] = useState<string[]>([]);
   const queryClient = useQueryClient();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -153,22 +148,27 @@ export default function SignalsClient({ profile }: { profile: any }) {
   const [hasMore, setHasMore] = useState(false);
   const limit = 20;
 
+  // Reset offset when filters change
   useEffect(() => {
     setOffset(0);
     setAllSignals([]);
-  }, [activeTab, searchQuery, selectedSignalTypes]);
+  }, [activeTab, searchQuery, selectedSectors, selectedEventCategories]);
 
+  // Build query parameters
+  const queryKey = ['signals', activeTab, searchQuery, selectedSectors, selectedEventCategories, offset];
   const { data, isLoading } = useQuery<{
     signals: ExtendedSignal[];
     total: number;
     hasMore: boolean;
   }>({
-    queryKey: ['signals', activeTab, searchQuery, selectedSignalTypes, offset],
+    queryKey,
     queryFn: async () => {
       const params = new URLSearchParams({
-        view: activeTab,
+        view: 'inbox', // reuse existing logic, but we'll override filters
         q: searchQuery,
-        signal_types: selectedSignalTypes.join(','),
+        signal_types: tabToSignalTypes[activeTab].join(','),
+        sectors: selectedSectors.join(','),
+        event_categories: selectedEventCategories.join(','),
         offset: String(offset),
         limit: String(limit),
       });
@@ -189,29 +189,13 @@ export default function SignalsClient({ profile }: { profile: any }) {
     }
   }, [data, offset]);
 
-  const loadMore = () => {
-    setOffset((prev) => prev + limit);
-  };
-
-  const toggleSignalType = (type: SignalType) => {
-    setSelectedSignalTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedSignalTypes([]);
-    setSearchQuery('');
-  };
-
-  const activeFilterCount = selectedSignalTypes.length;
+  const loadMore = () => setOffset((prev) => prev + limit);
 
   const handleSignalClick = (signal: ExtendedSignal) => {
     const signalType = signal.signal_type || 'Company News';
-    // Only actionable if it's Company News
-    if (signalType !== 'Company News') return;
+    // Only actionable for "Matched" tab (Company News)
+    if (activeTab !== 'matched' || signalType !== 'Company News') return;
 
-    // Show loading toast
     toast.loading('Analyzing signal...', { id: 'copy-potential' });
     startTransition(() => {
       copyRawToPotential(signal.id).catch((err) => {
@@ -220,13 +204,30 @@ export default function SignalsClient({ profile }: { profile: any }) {
     });
   };
 
+  const toggleSector = (sector: string) => {
+    setSelectedSectors((prev) =>
+      prev.includes(sector) ? prev.filter((s) => s !== sector) : [...prev, sector]
+    );
+  };
+
+  const toggleEventCategory = (category: string) => {
+    setSelectedEventCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedSectors([]);
+    setSelectedEventCategories([]);
+    setSearchQuery('');
+  };
+
+  const activeFilterCount = selectedSectors.length + selectedEventCategories.length;
+
   const LoadingSkeleton = () => (
     <div className="space-y-4">
       {[1, 2, 3, 4].map((i) => (
-        <div
-          key={i}
-          className="bg-card rounded-lg border border-border/60 p-4 animate-pulse"
-        >
+        <div key={i} className="bg-card rounded-lg border border-border/60 p-4 animate-pulse">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="flex-1 space-y-2">
               <div className="flex gap-2">
@@ -240,10 +241,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
                 <div className="h-6 w-16 bg-muted rounded"></div>
               </div>
             </div>
-            <div className="flex gap-2">
-              <div className="h-8 w-8 bg-muted rounded"></div>
-              <div className="h-8 w-8 bg-muted rounded"></div>
-            </div>
           </div>
         </div>
       ))}
@@ -253,32 +250,17 @@ export default function SignalsClient({ profile }: { profile: any }) {
   const EmptyState = () => (
     <div className="text-center py-16">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/30 mb-4">
-        {activeTab === 'inbox' && <Inbox className="h-8 w-8 text-muted-foreground" />}
-        {activeTab === 'search' && <Globe className="h-8 w-8 text-muted-foreground" />}
-        {activeTab === 'viewed' && <Eye className="h-8 w-8 text-muted-foreground" />}
+        <ListFilter className="h-8 w-8 text-muted-foreground" />
       </div>
       <h3 className="text-lg font-semibold mb-1">No signals found</h3>
       <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-        {searchQuery || selectedSignalTypes.length > 0
+        {searchQuery || activeFilterCount > 0
           ? 'Try adjusting your filters or search term.'
-          : activeTab === 'inbox'
-            ? 'Your inbox is empty. Browse the Firehose or add a manual signal.'
-            : activeTab === 'search'
-              ? 'No signals available in the global feed at the moment.'
-              : 'You haven’t viewed or dismissed any signals yet.'}
+          : `No ${activeTab === 'matched' ? 'matching company news' : activeTab === 'trends' ? 'trends or regulatory updates' : 'events'} available.`}
       </p>
-      {(searchQuery || selectedSignalTypes.length > 0) && (
+      {(searchQuery || activeFilterCount > 0) && (
         <Button variant="outline" onClick={clearFilters} className="mt-4">
           Clear Filters
-        </Button>
-      )}
-      {activeTab === 'inbox' && !searchQuery && selectedSignalTypes.length === 0 && (
-        <Button
-          variant="outline"
-          onClick={() => setActiveTab('search')}
-          className="mt-4"
-        >
-          Browse Firehose
         </Button>
       )}
     </div>
@@ -288,7 +270,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Header with All Signals button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Market Intelligence</h1>
@@ -296,28 +278,28 @@ export default function SignalsClient({ profile }: { profile: any }) {
             Curated opportunities matched to your ideal customer profile
           </p>
         </div>
+        <Button variant="outline" onClick={() => router.push('/signals/all')} className="gap-2">
+          <ListFilter className="h-4 w-4" />
+          All Signals
+        </Button>
       </div>
 
-      {/* Tabs & Filters */}
+      {/* Tabs */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-          className="w-full lg:w-auto"
-        >
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full lg:w-auto">
           <TabsList className="bg-muted/50 p-1 w-full lg:w-auto">
-            {['inbox', 'search', 'viewed'].map((tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="capitalize data-[state=active]:bg-background data-[state=active]:shadow-sm flex-1 lg:flex-none gap-2"
-              >
-                {tab === 'inbox' && <Inbox className="h-4 w-4" />}
-                {tab === 'search' && <Globe className="h-4 w-4" />}
-                {tab === 'viewed' && <Eye className="h-4 w-4" />}
-                {tab === 'search' ? 'Firehose' : tab === 'viewed' ? 'Viewed' : 'Inbox'}
-              </TabsTrigger>
-            ))}
+            <TabsTrigger value="matched" className="gap-2">
+              <Newspaper className="h-4 w-4" />
+              Matched Signals
+            </TabsTrigger>
+            <TabsTrigger value="trends" className="gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Trends
+            </TabsTrigger>
+            <TabsTrigger value="events" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Events
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -346,24 +328,31 @@ export default function SignalsClient({ profile }: { profile: any }) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>Signal Types</DropdownMenuLabel>
+              <DropdownMenuLabel>Sectors</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {(Object.entries(SIGNAL_TYPES) as [SignalType, SignalTypeConfig][]).map(
-                ([type, config]) => {
-                  const Icon = config.icon;
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={type}
-                      checked={selectedSignalTypes.includes(type)}
-                      onCheckedChange={() => toggleSignalType(type)}
-                      className="gap-2"
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{config.label}</span>
-                    </DropdownMenuCheckboxItem>
-                  );
-                }
-              )}
+              {SECTOR_LABELS &&
+                Object.entries(SECTOR_LABELS).map(([key, label]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={selectedSectors.includes(key)}
+                    onCheckedChange={() => toggleSector(key)}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Event Categories</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {EVENT_CATEGORY_LABELS &&
+                Object.entries(EVENT_CATEGORY_LABELS).map(([key, label]) => (
+                  <DropdownMenuCheckboxItem
+                    key={key}
+                    checked={selectedEventCategories.includes(key)}
+                    onCheckedChange={() => toggleEventCategory(key)}
+                  >
+                    {label}
+                  </DropdownMenuCheckboxItem>
+                ))}
               {activeFilterCount > 0 && (
                 <>
                   <DropdownMenuSeparator />
@@ -384,25 +373,21 @@ export default function SignalsClient({ profile }: { profile: any }) {
       </div>
 
       {/* Active filter chips */}
-      {selectedSignalTypes.length > 0 && (
+      {activeFilterCount > 0 && (
         <div className="flex flex-wrap gap-2 items-center">
           <span className="text-xs text-muted-foreground">Active filters:</span>
-          {selectedSignalTypes.map((type) => {
-            const config = SIGNAL_TYPES[type];
-            const Icon = config?.icon || Building2;
-            return (
-              <Badge
-                key={type}
-                variant="secondary"
-                className="gap-1 px-2 py-1 text-xs cursor-pointer hover:bg-muted"
-                onClick={() => toggleSignalType(type)}
-              >
-                <Icon className="h-3 w-3" />
-                {config?.label || type}
-                <XCircle className="h-3 w-3 ml-1" />
-              </Badge>
-            );
-          })}
+          {selectedSectors.map((sector) => (
+            <Badge key={sector} variant="secondary" className="gap-1 px-2 py-1 text-xs">
+              {SECTOR_LABELS[sector] || sector}
+              <XCircle className="h-3 w-3 ml-1 cursor-pointer" onClick={() => toggleSector(sector)} />
+            </Badge>
+          ))}
+          {selectedEventCategories.map((cat) => (
+            <Badge key={cat} variant="secondary" className="gap-1 px-2 py-1 text-xs">
+              {EVENT_CATEGORY_LABELS[cat] || cat}
+              <XCircle className="h-3 w-3 ml-1 cursor-pointer" onClick={() => toggleEventCategory(cat)} />
+            </Badge>
+          ))}
         </div>
       )}
 
@@ -418,7 +403,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
             const config = getSignalTypeConfig(signalType);
             const SignalTypeIcon = config.icon;
             const borderColorClass = config.borderColor;
-            const isActionable = signalType === 'Company News';
+            const isActionable = activeTab === 'matched' && signalType === 'Company News';
 
             return (
               <div
@@ -434,10 +419,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
                   <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <Badge
-                          variant="outline"
-                          className={`text-[11px] font-semibold px-2 py-0.5 gap-1 border ${config.color}`}
-                        >
+                        <Badge variant="outline" className={`text-[11px] font-semibold px-2 py-0.5 gap-1 border ${config.color}`}>
                           <SignalTypeIcon className="h-3 w-3" />
                           {config.label}
                         </Badge>
@@ -447,9 +429,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
                       </div>
 
                       {signal.description && (
-                        <p className="text-sm text-foreground/75 line-clamp-2 mb-3">
-                          {signal.description}
-                        </p>
+                        <p className="text-sm text-foreground/75 line-clamp-2 mb-3">{signal.description}</p>
                       )}
 
                       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-2">
@@ -477,27 +457,19 @@ export default function SignalsClient({ profile }: { profile: any }) {
                         {signal.event_category && (
                           <Badge
                             variant="outline"
-                            className={`text-[11px] font-medium px-2 py-0.5 border ${getEventCategoryStyle(
-                              signal.event_category
-                            )}`}
+                            className={`text-[11px] font-medium px-2 py-0.5 border ${getEventCategoryStyle(signal.event_category)}`}
                           >
                             {getEventCategoryLabel(signal.event_category)}
                           </Badge>
                         )}
                         {signal.sectors &&
                           [...new Set(signal.sectors)].slice(0, 2).map((s) => (
-                            <Badge
-                              key={s}
-                              variant="secondary"
-                              className="text-[10px] px-2 py-0.5 bg-muted/60 text-muted-foreground font-normal"
-                            >
+                            <Badge key={s} variant="secondary" className="text-[10px] px-2 py-0.5 bg-muted/60 text-muted-foreground font-normal">
                               {getSectorLabel(s)}
                             </Badge>
                           ))}
                         {signal.sectors && signal.sectors.length > 2 && (
-                          <span className="text-[10px] text-muted-foreground">
-                            +{signal.sectors.length - 2}
-                          </span>
+                          <span className="text-[10px] text-muted-foreground">+{signal.sectors.length - 2}</span>
                         )}
                       </div>
                     </div>
@@ -511,12 +483,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
                           className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted"
                           asChild
                         >
-                          <a
-                            href={signal.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <a href={signal.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                             <ExternalLink className="h-4 w-4" />
                             <span className="sr-only">Open source</span>
                           </a>
@@ -533,11 +500,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
                           }}
                           disabled={isPending}
                         >
-                          {isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <ExternalLink className="h-4 w-4" />
-                          )}
+                          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
                           <span className="hidden sm:inline">Analyze</span>
                         </Button>
                       )}
@@ -550,7 +513,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
         )}
       </div>
 
-      {signals.length > 0 && (searchQuery || selectedSignalTypes.length > 0) && (
+      {signals.length > 0 && (searchQuery || activeFilterCount > 0) && (
         <div className="text-center text-xs text-muted-foreground pt-2">
           {signals.length} result{signals.length !== 1 ? 's' : ''}
         </div>
@@ -570,7 +533,6 @@ export default function SignalsClient({ profile }: { profile: any }) {
           </Button>
         </div>
       )}
-
     </div>
   );
 }
