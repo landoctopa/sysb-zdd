@@ -1,38 +1,32 @@
 'use client';
 
 import { useEffect } from 'react';
-import { 
-  $leadsList, 
-  $activeLead, 
-  $activeContacts, 
-  $activeTasks, 
-  $activeCoachLogs 
-} from '@/store/leadsStore';
+import { useStore } from '@nanostores/react';
+import { $activeLead, $activeContacts, $activeTasks, $activeCoachLogs, $activeCommunications } from '@/store/leadsStore';
+import { $profile } from '@/store/profileStore';
+import type { LeadRow, ContactRow, TaskRow, CoachLogRow, CommunicationRow } from '@/store/leadsStore';
+import type { ProfileRow } from '@/store/profileStore';
 
-interface HydratorProps {
-  leads?: any[];
-  activeLead?: any;
-  contacts?: any[];
-  tasks?: any[];
-  coachLogs?: any[];
+interface Props {
+  activeLead: LeadRow;
+  contacts: ContactRow[];
+  tasks: TaskRow[];
+  coachLogs: CoachLogRow[];
+  communications?: CommunicationRow[];
+  userProfile?: ProfileRow;
+  children?: React.ReactNode;
 }
 
-export default function LeadStoreHydrator({ 
-  leads, 
-  activeLead, 
-  contacts, 
-  tasks, 
-  coachLogs 
-}: HydratorProps) {
-  
-  // We use a simple effect to sync server data to the client store on mount/update
+export default function LeadStoreHydrator({ activeLead, contacts, tasks, coachLogs, communications = [], userProfile, children }: Props) {
+  // Set atoms on mount and when props change
   useEffect(() => {
-    if (leads) $leadsList.set(leads);
-    if (activeLead) $activeLead.set(activeLead);
-    if (contacts) $activeContacts.set(contacts);
-    if (tasks) $activeTasks.set(tasks);
-    if (coachLogs) $activeCoachLogs.set(coachLogs);
-  }, [leads, activeLead, contacts, tasks, coachLogs]);
+    $activeLead.set(activeLead);
+    $activeContacts.set(contacts);
+    $activeTasks.set(tasks);
+    $activeCoachLogs.set(coachLogs);
+    $activeCommunications.set(communications);
+    if (userProfile) $profile.set(userProfile);
+  }, [activeLead, contacts, tasks, coachLogs, communications, userProfile]);
 
-  return null; // This component renders nothing, it just manages data
+  return <>{children}</>;
 }
