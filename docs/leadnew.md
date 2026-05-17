@@ -8,25 +8,6 @@ I have developing a sales management app for B2B businesses who are solopreneurs
 
 You are an expert sales leader with years of experience with deals of all sizes and sectors
 
-### Instruction
-
-- understand the structure of the app with context. Routes, flow and features
-
-- I have developed signals and potential routes and currently working on lead ochestration part
-
-- I want AI assistant (iris) to be main and active part of orchestration every step of the lead management through guiding users, providing feedback, research and insight. 
-  
-  - i want to standardize iris intervention at every stage and in context to every task
-  
-  - iris has access to user business profile, product offering, current lead details, tasks, etc
-
-- i want the standardisation to address following
-  
-  - How to create tasks given the stage and context. for example if the user is in contacted stage and have sent a mail, how long should they wait for reply, what should they do when they don't get reply, what should be right channel to reach out to people in context of current lead. what should happen to prompt user to change status or which marks completion of a stage
-  
-  - guide me through this
-  
-  - How would i create standardize template which iris could use for tasks, input, generating text for communication, how to prompt user to get feedback on a task and decide completion. I want user to be active part and final call on things
 
 ## Detailed Flow
 
@@ -136,3 +117,97 @@ You are an expert sales leader with years of experience with deals of all sizes 
       3. Create onboarding tasks
       
       4. Log reason for loss, Archive or flag for future re‑engagement
+
+
+## Lead Orchestration (iris)
+I want to manage have all the lead features managed through Iris. It would be done through a mix of AI, assist as well as preset templates and set actions. i have few files for iris integration but i have not built it inside of my project yet.
+
+## Attachments
+- Files for iris (templates, types, config)
+   - 20250001_iris_orchestration.sql
+   - condition-evaluator.ts
+   - iris.actions.ts
+   - IrisCoachSection.tsx
+   - IrisFeedbackPrompt.tsx
+   - leads.actions.ts
+   - orchestrator.ts
+   - playbook.config.ts
+   - resources.config.ts
+   - route.ts
+   - StageAdvanceGate.tsx
+   - template-utils.ts
+   - types.ts
+- Current lead routes and components
+   - app/leads/[id]/ActivityFeed.tsx
+   - app/leads/[id]/AddContactModal.tsx
+   - app/leads/[id]/AICoachSection.tsx
+   - app/leads/[id]/ContactsManager.tsx
+   - app/leads/[id]/page.tsx
+   - app/leads/[id]/StrategyCard.tsx
+   - app/leads/[id]/WorkbenchHeader.tsx
+- database types : database.types.ts
+
+## Instruction
+
+- understand the structure of the app with context. Routes, flow and features
+
+- I have developed signals and potential routes and currently working on lead ochestration part
+
+- I want AI assistant (iris) to be main and active part of orchestration every step of the lead management through guiding users, providing feedback, research and insight.  
+  - i want to standardize iris intervention at every stage and in context to every task  
+  - iris has access to user business profile, product offering, current lead details, tasks, etc
+
+- i want the standardisation to address following
+  - How to create tasks given the stage and context. for example if the user is in contacted stage and have sent a mail, how long should they wait for reply, what should they do when they don't get reply, what should be right channel to reach out to people in context of current lead. what should happen to prompt user to change status or which marks completion of a stage
+  - How would i create standardize template which iris could use for tasks, input, generating text for communication, how to prompt user to get feedback on a task and decide completion. I want user to be active part and final call on things
+- I have few idea for implementing iris (refer to attached files) guide me through this and evaluate my approach and provide alternatives
+
+
+## Clarifications
+1. Database & Schema
+Have you already run the 20250001_iris_orchestration.sql migration in Supabase? If yes, what's the current state of the tasks table (does it have task_config_id, feedback_submitted, user_approved, etc.)?
+
+Do you have the profiles table with columns like product_offering, company_name? If not, how do you store the user's business profile that Iris should use for personalisation?
+
+What's the exact schema of your communications table? (I saw type, direction, content, subject – but need to know if it logs both inbound/outbound emails, calls, meetings.)
+
+2. User & Business Profile
+For AI generation (emails, proposals, etc.), what information about the user's company should Iris know? (e.g., product name, value proposition, case studies, pricing model, typical sales cycle length)
+
+Do you have a place where the user defines their "ideal customer profile" or "product offering"? If not, we should add it to profiles.
+
+3. Sales Process Details
+What are the mandatory tasks in each stage? For example:
+
+In new: Must we always research contacts? Must we always send a cold email? Or sometimes LinkedIn only?
+
+In contacted: After a positive reply, do we immediately schedule a meeting or send more info?
+
+In proposal: Who typically drafts the proposal – the user or Iris? Should Iris generate a draft first?
+
+What are the common objections you face? (Budget, timing, competition, authority?) We'll need these for objection playbooks.
+
+What are the exit criteria for each stage? (e.g., from new to contacted: "Outreach sent AND response logged" or "At least one decision-maker contact identified"?)
+
+What channels do you typically use? (Email, LinkedIn, phone, SMS, WhatsApp?) Should Iris suggest channel based on lead data?
+
+4. AI & Automation Preferences
+Do you want Iris to automatically generate tasks when a stage is entered, or should the user trigger it manually?
+
+For email drafting: Should Iris use the user's Gmail/Outlook or just copy to clipboard? Your route.ts returns JSON, not sending emails – that's fine. But do you need integration with Gmail API to send drafts?
+
+Do you want automatic checkbacks (cron job) to nudge users after no activity? Or just manual refresh?
+
+Should Iris ever auto-advance a stage if all exit criteria are met, or always require user confirmation?
+
+5. Existing Code & Structure
+Where are your lib/ folders? I see references to @/lib/iris/... – is that already created? If not, where should I place the Iris files (e.g., lib/iris/orchestrator.ts, lib/iris/condition-evaluator.ts, etc.)?
+
+Do you have a lib/supabase/server.ts and client.ts? (I assume yes, since you use createClient.)
+
+What UI component library are you using? (You have @/components/ui/button, card, etc. – is that shadcn/ui?)
+
+6. Deployment & Environment
+Will you run the cron job via Vercel Cron Jobs, Supabase pg_cron, or a separate service?
+
+Do you have API keys for DeepSeek and Anthropic? (Your route.ts uses both, but you may only need one.)

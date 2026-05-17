@@ -16,37 +16,37 @@ export type Database = {
     Tables: {
       ai_coach_logs: {
         Row: {
-          action_payload: Json | null
-          action_type: string | null
-          context_data: Json | null
-          context_snapshot: Json | null
-          created_at: string | null
+          created_at: string
           id: string
-          insight: string
-          lead_id: string | null
+          lead_id: string
+          message: string | null
+          metadata: Json | null
           stage: string
+          suggested_actions: string[] | null
+          suggested_tasks: Json | null
+          type: Database["public"]["Enums"]["coach_log_type"]
         }
         Insert: {
-          action_payload?: Json | null
-          action_type?: string | null
-          context_data?: Json | null
-          context_snapshot?: Json | null
-          created_at?: string | null
+          created_at?: string
           id?: string
-          insight: string
-          lead_id?: string | null
+          lead_id: string
+          message?: string | null
+          metadata?: Json | null
           stage: string
+          suggested_actions?: string[] | null
+          suggested_tasks?: Json | null
+          type: Database["public"]["Enums"]["coach_log_type"]
         }
         Update: {
-          action_payload?: Json | null
-          action_type?: string | null
-          context_data?: Json | null
-          context_snapshot?: Json | null
-          created_at?: string | null
+          created_at?: string
           id?: string
-          insight?: string
-          lead_id?: string | null
+          lead_id?: string
+          message?: string | null
+          metadata?: Json | null
           stage?: string
+          suggested_actions?: string[] | null
+          suggested_tasks?: Json | null
+          type?: Database["public"]["Enums"]["coach_log_type"]
         }
         Relationships: [
           {
@@ -60,40 +60,40 @@ export type Database = {
       }
       communications: {
         Row: {
+          body: string | null
+          channel: Database["public"]["Enums"]["communication_channel"]
           contact_id: string | null
-          content: string | null
-          created_at: string | null
-          direction: string
-          gmail_thread_id: string | null
+          created_at: string
+          direction: Database["public"]["Enums"]["communication_direction"]
           id: string
-          lead_id: string | null
+          lead_id: string
+          occurred_at: string
           subject: string | null
-          type: string
-          user_id: string | null
+          summary: string | null
         }
         Insert: {
+          body?: string | null
+          channel: Database["public"]["Enums"]["communication_channel"]
           contact_id?: string | null
-          content?: string | null
-          created_at?: string | null
-          direction: string
-          gmail_thread_id?: string | null
+          created_at?: string
+          direction: Database["public"]["Enums"]["communication_direction"]
           id?: string
-          lead_id?: string | null
+          lead_id: string
+          occurred_at?: string
           subject?: string | null
-          type: string
-          user_id?: string | null
+          summary?: string | null
         }
         Update: {
+          body?: string | null
+          channel?: Database["public"]["Enums"]["communication_channel"]
           contact_id?: string | null
-          content?: string | null
-          created_at?: string | null
-          direction?: string
-          gmail_thread_id?: string | null
+          created_at?: string
+          direction?: Database["public"]["Enums"]["communication_direction"]
           id?: string
-          lead_id?: string | null
+          lead_id?: string
+          occurred_at?: string
           subject?: string | null
-          type?: string
-          user_id?: string | null
+          summary?: string | null
         }
         Relationships: [
           {
@@ -114,46 +114,43 @@ export type Database = {
       }
       contacts: {
         Row: {
-          created_at: string | null
+          created_at: string
           email: string | null
           id: string
-          label: string | null
+          is_decision_maker: boolean | null
           lead_id: string
           linkedin_url: string | null
           name: string
+          notes: string | null
           phone: string | null
-          reasoning: string | null
-          status: string | null
-          title: string | null
-          user_id: string
+          role: string | null
+          updated_at: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           id?: string
-          label?: string | null
+          is_decision_maker?: boolean | null
           lead_id: string
           linkedin_url?: string | null
           name: string
+          notes?: string | null
           phone?: string | null
-          reasoning?: string | null
-          status?: string | null
-          title?: string | null
-          user_id: string
+          role?: string | null
+          updated_at?: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
           email?: string | null
           id?: string
-          label?: string | null
+          is_decision_maker?: boolean | null
           lead_id?: string
           linkedin_url?: string | null
           name?: string
+          notes?: string | null
           phone?: string | null
-          reasoning?: string | null
-          status?: string | null
-          title?: string | null
-          user_id?: string
+          role?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
@@ -226,133 +223,55 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "interactions_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       leads: {
         Row: {
-          ai_coach_state: Json | null
+          ai_coach_state: Json
           business_justification: string | null
-          company_metadata: Json | null
           company_name: string | null
-          country: string | null
-          created_at: string | null
+          created_at: string
           deal_timeline: string | null
-          decision_maker_contact: Json | null
-          decision_maker_name: string | null
-          executive_summary: string | null
           hotness_score: number | null
           id: string
-          lead_category: string | null
-          lead_research_depth: string | null
-          linkedin_url: string | null
-          llm_reasoning: string | null
-          proposal_draft: string | null
-          proposal_generated: boolean | null
-          proposal_status: string | null
-          relevant_case_study: string | null
-          sales_points: string[] | null
-          signal_id: string | null
-          status: Database["public"]["Enums"]["lead_status"] | null
+          status: string
           strategic_analysis: string | null
           strategic_hurdles: string | null
-          title: string | null
           trigger_alignment: string | null
-          user_id: string | null
-          user_signal_id: string | null
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          ai_coach_state?: Json | null
+          ai_coach_state?: Json
           business_justification?: string | null
-          company_metadata?: Json | null
           company_name?: string | null
-          country?: string | null
-          created_at?: string | null
+          created_at?: string
           deal_timeline?: string | null
-          decision_maker_contact?: Json | null
-          decision_maker_name?: string | null
-          executive_summary?: string | null
           hotness_score?: number | null
           id?: string
-          lead_category?: string | null
-          lead_research_depth?: string | null
-          linkedin_url?: string | null
-          llm_reasoning?: string | null
-          proposal_draft?: string | null
-          proposal_generated?: boolean | null
-          proposal_status?: string | null
-          relevant_case_study?: string | null
-          sales_points?: string[] | null
-          signal_id?: string | null
-          status?: Database["public"]["Enums"]["lead_status"] | null
+          status?: string
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
-          title?: string | null
           trigger_alignment?: string | null
-          user_id?: string | null
-          user_signal_id?: string | null
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          ai_coach_state?: Json | null
+          ai_coach_state?: Json
           business_justification?: string | null
-          company_metadata?: Json | null
           company_name?: string | null
-          country?: string | null
-          created_at?: string | null
+          created_at?: string
           deal_timeline?: string | null
-          decision_maker_contact?: Json | null
-          decision_maker_name?: string | null
-          executive_summary?: string | null
           hotness_score?: number | null
           id?: string
-          lead_category?: string | null
-          lead_research_depth?: string | null
-          linkedin_url?: string | null
-          llm_reasoning?: string | null
-          proposal_draft?: string | null
-          proposal_generated?: boolean | null
-          proposal_status?: string | null
-          relevant_case_study?: string | null
-          sales_points?: string[] | null
-          signal_id?: string | null
-          status?: Database["public"]["Enums"]["lead_status"] | null
+          status?: string
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
-          title?: string | null
           trigger_alignment?: string | null
-          user_id?: string | null
-          user_signal_id?: string | null
+          updated_at?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "leads_signal_id_fkey"
-            columns: ["signal_id"]
-            isOneToOne: false
-            referencedRelation: "raw_signals"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leads_user_signal_id_fkey"
-            columns: ["user_signal_id"]
-            isOneToOne: false
-            referencedRelation: "user_signals"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -478,40 +397,64 @@ export type Database = {
       }
       tasks: {
         Row: {
-          created_at: string | null
-          description: string | null
-          due_date: string | null
-          end_date: string | null
-          google_calendar_event_id: string | null
+          auto_prompt: boolean
+          channel: Database["public"]["Enums"]["task_channel"]
+          completed_at: string | null
+          created_at: string
+          due_date: string
+          feedback_answers: Json | null
+          feedback_saves_to: string | null
+          feedback_submitted: boolean
           id: string
-          lead_id: string | null
-          status: string | null
+          iris_tip: string | null
+          lead_id: string
+          required: boolean
+          stage: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          task_config_id: string | null
           title: string
-          user_id: string | null
+          updated_at: string
+          user_approved: boolean
         }
         Insert: {
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          end_date?: string | null
-          google_calendar_event_id?: string | null
+          auto_prompt?: boolean
+          channel: Database["public"]["Enums"]["task_channel"]
+          completed_at?: string | null
+          created_at?: string
+          due_date: string
+          feedback_answers?: Json | null
+          feedback_saves_to?: string | null
+          feedback_submitted?: boolean
           id?: string
-          lead_id?: string | null
-          status?: string | null
+          iris_tip?: string | null
+          lead_id: string
+          required?: boolean
+          stage?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_config_id?: string | null
           title: string
-          user_id?: string | null
+          updated_at?: string
+          user_approved?: boolean
         }
         Update: {
-          created_at?: string | null
-          description?: string | null
-          due_date?: string | null
-          end_date?: string | null
-          google_calendar_event_id?: string | null
+          auto_prompt?: boolean
+          channel?: Database["public"]["Enums"]["task_channel"]
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string
+          feedback_answers?: Json | null
+          feedback_saves_to?: string | null
+          feedback_submitted?: boolean
           id?: string
-          lead_id?: string | null
-          status?: string | null
+          iris_tip?: string | null
+          lead_id?: string
+          required?: boolean
+          stage?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_config_id?: string | null
           title?: string
-          user_id?: string | null
+          updated_at?: string
+          user_approved?: boolean
         }
         Relationships: [
           {
@@ -597,8 +540,17 @@ export type Database = {
     }
     Functions: {
       delete_old_raw_signals: { Args: never; Returns: undefined }
+      jsonb_merge: { Args: { base: Json; patch: Json }; Returns: Json }
     }
     Enums: {
+      coach_log_type:
+        | "entry"
+        | "checkback"
+        | "post_feedback"
+        | "task_unlocked"
+        | "stage_exit"
+      communication_channel: "email" | "call" | "meeting" | "linkedin" | "other"
+      communication_direction: "outbound" | "inbound"
       event_category_enum:
         | "launch"
         | "funding"
@@ -623,6 +575,14 @@ export type Database = {
         | "Industry Trend"
         | "Events/Meetups"
         | "Regulatory/Government"
+      task_channel:
+        | "email"
+        | "linkedin"
+        | "phone"
+        | "meeting"
+        | "internal"
+        | "auto"
+      task_status: "pending" | "completed" | "skipped"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -750,6 +710,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      coach_log_type: [
+        "entry",
+        "checkback",
+        "post_feedback",
+        "task_unlocked",
+        "stage_exit",
+      ],
+      communication_channel: ["email", "call", "meeting", "linkedin", "other"],
+      communication_direction: ["outbound", "inbound"],
       event_category_enum: [
         "launch",
         "funding",
@@ -777,6 +746,15 @@ export const Constants = {
         "Events/Meetups",
         "Regulatory/Government",
       ],
+      task_channel: [
+        "email",
+        "linkedin",
+        "phone",
+        "meeting",
+        "internal",
+        "auto",
+      ],
+      task_status: ["pending", "completed", "skipped"],
     },
   },
 } as const
