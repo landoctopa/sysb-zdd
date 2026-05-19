@@ -1,5 +1,7 @@
 'use client';
 
+// components/leads/AddTaskModal.tsx
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,30 +19,38 @@ export function AddTaskModal({ open, onOpenChange }: { open: boolean; onOpenChan
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!lead) return;
-    if (!title.trim()) {
-      toast.error('Title is required');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await addTask(lead.id, {
-        title: title.trim(),
-        description: description.trim() || null,
-        due_date: dueDate ? new Date(dueDate).toISOString() : null,
-        status: 'pending',
-      });
-      toast.success('Task added');
-      onOpenChange(false);
-      setTitle('');
-      setDescription('');
-      setDueDate('');
-    } catch (err) {
-      toast.error('Failed to add task');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  if (!lead) return;
+  if (!title.trim()) {
+    toast.error('Title is required');
+    return;
+  }
+  setIsLoading(true);
+  try {
+    await addTask(lead.id, {
+      title: title.trim(),
+      
+      // FIX 1: Map the description text directly to the iris_tip column
+      iris_tip: description.trim() || undefined,
+      
+      // FIX 2: Fall back to today's date if blank, since due_date is required by your schema
+      due_date: dueDate ? new Date(dueDate).toISOString() : new Date().toISOString(),
+      
+      // FIX 3: Add the required channel enum property for manual dashboard items
+      channel: 'internal',
+      
+      status: 'pending',
+    });
+    toast.success('Task added');
+    onOpenChange(false);
+    setTitle('');
+    setDescription('');
+    setDueDate('');
+  } catch (err) {
+    toast.error('Failed to add task');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
