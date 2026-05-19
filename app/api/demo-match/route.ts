@@ -1,12 +1,8 @@
+// app/api/demo-match/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+// FIX 1: Import your newly configured modern server client factory instead of the bare sdk
+import { createClient } from '@/utils/supabase/server';
 import { SECTORS, EVENT_CATEGORIES } from '@/utils/constants';
-
-// Service‑role client – safe because we only read public signals
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!   // add this env var
-);
 
 // Simple in‑memory rate limiter (resets on restart)
 const rateLimitMap = new Map<string, number>();
@@ -81,8 +77,12 @@ Choose the most relevant 2-4 sectors, 1-3 countries, and 2-4 event categories th
     const countries = (profile.countries || []).filter((c: string) => /^[a-z]{2}$/.test(c));
     const eventCategories = (profile.event_categories || []).filter((e: string) => eventSet.has(e));
 
+    // FIX 2: Initialize the Supabase server client inside the execution context thread.
+    // This dynamically processes cookies and safely evaluates environment properties without crashing on build.
+    const supabase = await createClient();
+
     // Query matching raw_signals
-    let matchQuery = supabaseAdmin
+    let matchQuery = supabase
       .from('raw_signals')
       .select('*')
       .eq('status', 'analysed')
