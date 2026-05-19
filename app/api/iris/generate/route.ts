@@ -1,21 +1,8 @@
+// app/api/iris/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { IrisOrchestrator } from '@/lib/iris/orchestrator';
-import { IRIS_RESOURCES } from '@/lib/iris/resources.config';
-
-/**
- * POST /api/iris/generate
- *
- * Two call patterns:
- *
- * 1. Direct action (from IrisCoachSection AI action buttons):
- *    { action_key: "draft_outreach_email", lead_id: "..." }
- *    → fetches lead, builds context, calls AI, returns result
- *
- * 2. Orchestrator-internal (from IrisOrchestrator.runAiAction):
- *    { system_prompt, context, output_format, model }
- *    → calls AI directly with pre-built payload
- */
+import { saveIrisDraft } from '@/app/actions/iris'; // Import our new layout persistence action
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,6 +30,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
       }
 
+      // FIX: Fetch existing database tasks to populate the updated orchestrator track
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('lead_id', body.lead_id);
+
       // Fetch user profile (for product_offering, offerings, etc.)
       const { data: profile } = await supabase
         .from('profiles')
@@ -50,13 +43,25 @@ export async function POST(req: NextRequest) {
         .eq('id', user.id)
         .single();
 
+      // Instantiated with live task arrays to unlock multi-level depends_on rules
       const orchestrator = new IrisOrchestrator(
         lead,
         (lead.ai_coach_state as Record<string, any>) || {},
-        profile || undefined
+        profile || undefined,
+        tasks || []
       );
 
       const result = await orchestrator.runAiAction(body.action_key);
+      
+      if (result) {
+        // FIX: Persistent database tracking for AI assets
+        await saveIrisDraft({
+          leadId: body.lead_id,
+          actionKey: body.action_key,
+          payload: result
+        });
+      }
+
       return NextResponse.json(result ?? { error: 'No result' });
     }
 
@@ -81,7 +86,6 @@ export async function POST(req: NextRequest) {
 }
 
 // ─── AI call (DeepSeek only) ─────────────────────────────────────────────────
-
 async function callDeepSeek({
   systemPrompt,
   userMessage,
@@ -126,7 +130,6 @@ async function callDeepSeek({
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function buildUserMessage(
   context: Record<string, unknown>,
   outputFormat: string | Record<string, string>
@@ -147,9 +150,7 @@ function buildUserMessage(
 }
 
 function parseAiOutput(text: string): any {
-  // Clean markdown code fences
   let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  // Try to extract JSON if there's extra text
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     cleaned = jsonMatch[0];
@@ -157,7 +158,6 @@ function parseAiOutput(text: string): any {
   try {
     return JSON.parse(cleaned);
   } catch {
-    // If not JSON, return as plain text message
     return { message: text.trim() };
   }
 }

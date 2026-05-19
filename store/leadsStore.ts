@@ -169,28 +169,32 @@ export async function toggleTaskCompletion(taskId: string, completed: boolean) {
 }
 
 // ============================================================
-// NEW IRIS ACTIONS (optimistic updates)
+// PURE BROWSER-SAFE IRIS ACTIONS (ENVIRONMENT AGNOSTIC)
 // ============================================================
-
-import { completeTask as completeTaskAction, approveTask as approveTaskAction, submitTaskFeedback as submitTaskFeedbackAction, confirmAndCreateTasks } from '@/app/actions/iris';
-import { updateLeadStatus as updateLeadStatusAction } from '@/app/actions/leads';
 
 export async function completeTaskOptimistic(taskId: string, taskConfigId: string) {
   const currentTasks = $activeTasks.get();
   const task = currentTasks.find(t => t.id === taskId);
   if (!task) return;
 
-  // Optimistic update
+  // Optimistic local UI push
   $activeTasks.set(currentTasks.map(t => 
     t.id === taskId ? { ...t, status: 'completed', completed_at: new Date().toISOString() } : t
   ));
 
   try {
-    const result = await completeTaskAction({ leadId: task.lead_id, taskId, taskConfigId });
-    if (!result.ok && result.message) {
-      // Rollback on gate failure
+    const res = await fetch(`/api/iris/tasks/complete`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: task.lead_id, taskId, taskConfigId })
+    });
+    
+    const result = await res.json();
+
+    if (!res.ok || (!result.ok && result.message)) {
+      // Graceful rollback to pristine collection state on blocker gates
       $activeTasks.set(currentTasks);
-      toast.error(result.message);
+      toast.error(result.message || 'Failed to complete task');
     } else {
       toast.success('Task completed');
     }
@@ -204,9 +208,18 @@ export async function approveTaskOptimistic(taskId: string) {
   const lead = $activeLead.get();
   if (!lead) return;
   const currentTasks = $activeTasks.get();
+
+  // Optimistic state lock
   $activeTasks.set(currentTasks.map(t => t.id === taskId ? { ...t, user_approved: true } : t));
+  
   try {
-    await approveTaskAction({ leadId: lead.id, taskId });
+    const res = await fetch(`/api/iris/tasks/approve`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId: lead.id, taskId })
+    });
+
+    if (!res.ok) throw new Error();
     toast.success('Approved');
   } catch {
     $activeTasks.set(currentTasks);
@@ -216,15 +229,42 @@ export async function approveTaskOptimistic(taskId: string) {
 
 export async function submitFeedbackOptimistic(leadId: string, taskConfigId: string, answers: Record<string, any>, savesTo: string) {
   const currentTasks = $activeTasks.get();
+  const lead = $activeLead.get();
+
+  // 1. Optimistically mark task feedback flag locally
   $activeTasks.set(currentTasks.map(t => 
     t.task_config_id === taskConfigId ? { ...t, feedback_submitted: true, feedback_answers: answers } : t
   ));
+
+  // 2. Deep merge answers inline instantly inside client state so exit criteria check works cleanly
+  if (lead) {
+    const parts = savesTo.split('.');
+    const newState = JSON.parse(JSON.stringify(lead.ai_coach_state || {}));
+    let target = newState;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (!target[part]) target[part] = {};
+      target = target[part];
+    }
+    const lastPart = parts[parts.length - 1];
+    target[lastPart] = { ...target[lastPart], ...answers };
+    $activeLead.set({ ...lead, ai_coach_state: newState });
+  }
+
   try {
-    const result = await submitTaskFeedbackAction({ leadId, taskConfigId, answers, savesTo });
+    const res = await fetch(`/api/iris/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, taskConfigId, answers, savesTo })
+    });
+
+    if (!res.ok) throw new Error();
+    const result = await res.json();
     toast.success('Feedback saved');
     return result;
   } catch(err) {
     $activeTasks.set(currentTasks);
+    if (lead) $activeLead.set(lead);
     toast.error('Failed to save feedback');
     throw err;
   }
@@ -232,6 +272,8 @@ export async function submitFeedbackOptimistic(leadId: string, taskConfigId: str
 
 export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial<TaskRow>[]) {
   const currentTasks = $activeTasks.get();
+  
+  // Staging optimistic additions cleanly
   const optimisticTasks = tasks.map(t => ({ 
     ...t, 
     id: `temp-${Date.now()}-${Math.random()}`,
@@ -239,13 +281,45 @@ export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial
     lead_id: leadId,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    feedback_submitted: false,
+    user_approved: false,
   })) as TaskRow[];
+  
   $activeTasks.set([...optimisticTasks, ...currentTasks]);
+
   try {
-    await confirmAndCreateTasks({ leadId, tasks });
+    const res = await fetch(`/api/iris/tasks/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, tasks })
+    });
+
+    if (!res.ok) throw new Error();
     toast.success('Tasks created');
   } catch {
     $activeTasks.set(currentTasks);
     toast.error('Failed to create tasks');
+  }
+}
+
+export async function persistAiDraftOptimistic(leadId: string, actionKey: string, draftPayload: any) {
+  const lead = $activeLead.get();
+  if (!lead) return;
+
+  const state = JSON.parse(JSON.stringify(lead.ai_coach_state || {}));
+  if (!state.ai_drafts) state.ai_drafts = {};
+  state.ai_drafts[actionKey] = draftPayload;
+
+  $activeLead.set({ ...lead, ai_coach_state: state });
+
+  try {
+    const res = await fetch(`/api/iris/drafts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, actionKey, payload: draftPayload })
+    });
+    if (!res.ok) throw new Error();
+  } catch {
+    toast.error('Failed to cache draft copy to server database');
   }
 }
