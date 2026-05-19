@@ -1,10 +1,5 @@
-'use server';
-
 /**
  * /app/actions/iris.ts
- *
- * Next.js server actions that bridge React components to IrisOrchestrator.
- * All business logic stays in the orchestrator – these are thin I/O handlers.
  */
 
 import { revalidatePath } from 'next/cache';
@@ -15,13 +10,6 @@ import { IRIS_PLAYBOOK } from '@/lib/iris/playbook.config';
 import type { LeadStage, Task, CoachState } from '@/lib/iris/types';
 import type { CriterionResult } from '@/lib/iris/condition-evaluator';
 
-// ─── submitTaskFeedback ───────────────────────────────────────────────────────
-
-/**
- * Called by IrisFeedbackPrompt after the user answers all questions.
- * Merges answers into ai_coach_state, fires any post_feedback_action,
- * and marks the task feedback as submitted.
- */
 export async function submitTaskFeedback({
   leadId,
   taskConfigId,
@@ -35,7 +23,6 @@ export async function submitTaskFeedback({
 }) {
   const supabase = await createClient();
 
-  // Get current lead with coach state
   const { data: lead, error } = await supabase
     .from('leads')
     .select('*, contacts(*)')
@@ -44,12 +31,15 @@ export async function submitTaskFeedback({
 
   if (error || !lead) throw new Error('Lead not found');
 
-  const coachState = (lead.ai_coach_state as CoachState) || {};
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('lead_id', leadId);
 
-  const orchestrator = new IrisOrchestrator(lead, coachState);
+  const coachState = (lead.ai_coach_state as CoachState) || {};
+  const orchestrator = new IrisOrchestrator(lead, coachState, undefined, tasks || []);
   const postFeedbackResult = await orchestrator.onFeedbackSubmit(taskConfigId, answers);
 
-  // Update the task: mark feedback as submitted and store answers
   const { error: taskError } = await supabase
     .from('tasks')
     .update({
@@ -62,17 +52,12 @@ export async function submitTaskFeedback({
 
   if (taskError) throw new Error(`Failed to update task: ${taskError.message}`);
 
-  // Also update the lead's ai_coach_state with the merged answers
-  // The orchestrator already computed the updated state in onFeedbackSubmit
-  // We need to persist it. However, the orchestrator's mergeIntoCoachState is private.
-  // We'll re-merge manually here using the same logic.
   const updatedCoachState = mergeIntoCoachState(coachState, savesTo, answers);
   await supabase
     .from('leads')
     .update({ ai_coach_state: updatedCoachState })
     .eq('id', leadId);
 
-  // If post-feedback action produced a result (e.g., objection playbook), log it
   if (postFeedbackResult) {
     await supabase.from('ai_coach_logs').insert({
       lead_id: leadId,
@@ -88,13 +73,6 @@ export async function submitTaskFeedback({
   return { ok: true, postFeedbackResult };
 }
 
-// ─── triggerStageEntry ───────────────────────────────────────────────────────
-
-/**
- * Called after updateLeadStatus succeeds.
- * Fires the IrisOrchestrator.onStageEntry() to generate the entry briefing
- * and suggested tasks. Returns the message and tasks for the UI to show.
- */
 export async function triggerStageEntry({
   leadId,
   stage,
@@ -112,15 +90,19 @@ export async function triggerStageEntry({
 
   if (!lead) throw new Error('Lead not found');
 
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('lead_id', leadId);
+
   const coachState = (lead.ai_coach_state as CoachState) || {};
-  const orchestrator = new IrisOrchestrator(lead, coachState);
+  const orchestrator = new IrisOrchestrator(lead, coachState, undefined, tasks || []);
 
   const stageEntry = await orchestrator.onStageEntry(stage);
-  if (!stageEntry) return { message: null, taskCount: 0 };
+  if (!stageEntry) return { message: null, suggestedTasks: [] };
 
   const { message, tasks: suggestedTasks } = stageEntry;
 
-  // Log the entry message
   await supabase.from('ai_coach_logs').insert({
     lead_id: leadId,
     stage,
@@ -129,15 +111,9 @@ export async function triggerStageEntry({
     suggested_tasks: suggestedTasks,
   });
 
-  // Return the suggested tasks – the UI will ask user to confirm creation
   return { message, suggestedTasks };
 }
 
-// ─── confirmAndCreateTasks ───────────────────────────────────────────────────
-
-/**
- * After user confirms one or more suggested tasks, create them in the database.
- */
 export async function confirmAndCreateTasks({
   leadId,
   tasks,
@@ -148,10 +124,18 @@ export async function confirmAndCreateTasks({
   const supabase = await createClient();
 
   const tasksToInsert = tasks.map(task => ({
-    ...task,
-    status: 'pending',
+    lead_id: leadId,
+    stage: task.stage,
+    task_config_id: task.task_config_id,
+    title: task.title!,
+    channel: task.channel!,
+    due_date: task.due_date!,
+    required: task.required ?? false,
+    iris_tip: task.iris_tip ?? null,
+    status: 'pending' as const,
     feedback_submitted: false,
     user_approved: false,
+    auto_prompt: task.auto_prompt ?? false,
   }));
 
   const { error } = await supabase.from('tasks').insert(tasksToInsert);
@@ -161,13 +145,6 @@ export async function confirmAndCreateTasks({
   return { ok: true };
 }
 
-// ─── completeTask ────────────────────────────────────────────────────────────
-
-/**
- * Called when user clicks "Complete" on a task.
- * Checks the completion gate first – returns an error message if blocked.
- * If allowed, marks task as completed and unlocks any dependent tasks.
- */
 export async function completeTask({
   leadId,
   taskId,
@@ -179,7 +156,6 @@ export async function completeTask({
 }) {
   const supabase = await createClient();
 
-  // Fetch the task row and lead
   const { data: task, error: taskFetchError } = await supabase
     .from('tasks')
     .select('*')
@@ -196,15 +172,19 @@ export async function completeTask({
 
   if (!lead) throw new Error('Lead not found');
 
+  const { data: allTasks } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('lead_id', leadId);
+
   const coachState = (lead.ai_coach_state as CoachState) || {};
-  const orchestrator = new IrisOrchestrator(lead, coachState);
+  const orchestrator = new IrisOrchestrator(lead, coachState, undefined, allTasks || []);
 
   const gate = orchestrator.canCompleteTask(taskConfigId, task);
   if (!gate.allowed) {
     return { ok: false, message: gate.message };
   }
 
-  // Mark task as completed
   const { error: updateError } = await supabase
     .from('tasks')
     .update({ status: 'completed', completed_at: new Date().toISOString() })
@@ -212,10 +192,17 @@ export async function completeTask({
 
   if (updateError) throw new Error(`Failed to complete task: ${updateError.message}`);
 
-  // Unlock dependent tasks: find tasks in the same stage that depend on this task_config_id
   const stage = lead.status as LeadStage;
   const stageConfig = IRIS_PLAYBOOK[stage];
-  const dependents = stageConfig?.tasks.filter(t => t.depends_on?.includes(taskConfigId)) ?? [];
+  
+  // Re-fetch completed task configuration tags including this item
+  const nextCompletedSet = new Set((allTasks || []).map(t => t.task_config_id).filter(Boolean) as string[]);
+  nextCompletedSet.add(taskConfigId);
+
+  const dependents = stageConfig?.tasks.filter(t => {
+    if (!t.depends_on?.includes(taskConfigId)) return false;
+    return t.depends_on.every(depId => nextCompletedSet.has(depId));
+  }) ?? [];
 
   if (dependents.length > 0) {
     const newTasks = dependents.map(t => ({
@@ -223,23 +210,23 @@ export async function completeTask({
       stage,
       task_config_id: t.id,
       title: t.title,
-      channel: t.channel,
+      channel: t.channel === 'auto' ? 'email' : t.channel,
       due_date: addBusinessDays(new Date(), t.due_business_days).toISOString(),
       required: t.required,
       iris_tip: t.iris_tip ?? null,
-      status: 'pending',
+      status: 'pending' as const,
       feedback_submitted: false,
       user_approved: false,
+      auto_prompt: t.feedback_prompt?.trigger === 'on_create',
     }));
 
     const { error: insertError } = await supabase.from('tasks').insert(newTasks);
     if (!insertError) {
-      // Log that Iris unlocked new tasks
       await supabase.from('ai_coach_logs').insert({
         lead_id: leadId,
         stage,
         type: 'task_unlocked',
-        message: `Task complete. I've created ${newTasks.length} follow-up ${newTasks.length === 1 ? 'task' : 'tasks'} for you.`,
+        message: `Task complete. I've unlocked ${newTasks.length} follow-up ${newTasks.length === 1 ? 'task' : 'tasks'} for you.`,
         suggested_tasks: newTasks,
       });
     }
@@ -249,12 +236,6 @@ export async function completeTask({
   return { ok: true };
 }
 
-// ─── getExitCriteriaResults ──────────────────────────────────────────────────
-
-/**
- * Called by StageAdvanceGate before opening the dialog.
- * Evaluates all exit criteria for the current stage server-side.
- */
 export async function getExitCriteriaResults({
   leadId,
   currentStage,
@@ -286,12 +267,6 @@ export async function getExitCriteriaResults({
   };
 }
 
-// ─── approveTask ─────────────────────────────────────────────────────────────
-
-/**
- * Marks an Iris-generated draft (proposal, deal summary, etc.) as user-approved.
- * Unlocks task completion if the task has requires_user_approval.
- */
 export async function approveTask({
   leadId,
   taskId,
@@ -313,7 +288,30 @@ export async function approveTask({
   return { ok: true };
 }
 
-// ─── Helpers (duplicated from orchestrator to avoid circular deps) ──────────
+/**
+ * Persist AI-Generated drafts contextually inside the lead's state.
+ */
+export async function saveIrisDraft({
+  leadId,
+  actionKey,
+  payload,
+}: {
+  leadId: string;
+  actionKey: string;
+  payload: any;
+}) {
+  const supabase = await createClient();
+  const { data: lead } = await supabase.from('leads').select('ai_coach_state').eq('id', leadId).single();
+  if (!lead) throw new Error('Lead missing');
+
+  const state = (lead.ai_coach_state as Record<string, any>) || {};
+  if (!state.ai_drafts) state.ai_drafts = {};
+  state.ai_drafts[actionKey] = payload;
+
+  await supabase.from('leads').update({ ai_coach_state: state }).eq('id', leadId);
+  revalidatePath(`/leads/${leadId}`);
+  return { success: true };
+}
 
 function mergeIntoCoachState(
   currentState: CoachState,
