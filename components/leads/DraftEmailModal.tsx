@@ -1,5 +1,7 @@
 'use client';
 
+// components/leads/DraftEmailModal.tsx
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,13 +32,15 @@ export function DraftEmailModal({ open, onOpenChange }: { open: boolean; onOpenC
     }
     const url = buildGmailUrl(recipient, subject, body);
     window.open(url, '_blank');
+    
     // Also save a record
     if (lead) {
+      // FIX: Realigned property names to match exact 'communications' schema definitions
       addCommunication(lead.id, {
-        type: 'email',
+        channel: 'email', // Changed from 'type'
         direction: 'outbound',
-        subject,
-        content: body,
+        subject: subject.trim() || null,
+        body: body.trim() || null, // Changed from 'content'
         contact_id: contactId || null,
       }).catch(console.error);
     }

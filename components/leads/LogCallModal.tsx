@@ -1,5 +1,7 @@
 'use client';
 
+// components/leads/LogCallModal.tsx
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +16,9 @@ export function LogCallModal({ open, onOpenChange }: { open: boolean; onOpenChan
   const lead = useStore($activeLead);
   const contacts = useStore($activeContacts);
   const [contactId, setContactId] = useState('');
-  const [direction, setDirection] = useState('outbound');
+  
+  // FIX 1: Explicitly lock the useState type parameter down to the strict literal union schema rules
+  const [direction, setDirection] = useState<'outbound' | 'inbound'>('outbound');
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,10 +26,11 @@ export function LogCallModal({ open, onOpenChange }: { open: boolean; onOpenChan
     if (!lead) return;
     setIsLoading(true);
     try {
+      // FIX 2: Realigned property mappings to conform with the communications data table layouts
       await addCommunication(lead.id, {
-        type: 'call',
+        channel: 'call', // Changed from 'type'
         direction,
-        content: notes,
+        body: notes.trim() || null, // Changed from 'content'
         contact_id: contactId || null,
       });
       toast.success('Call logged');
@@ -51,7 +56,9 @@ export function LogCallModal({ open, onOpenChange }: { open: boolean; onOpenChan
               {contacts.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={direction} onValueChange={setDirection}>
+          
+          {/* Force type cast to protect setter changes from string widener exceptions */}
+          <Select value={direction} onValueChange={(v: 'outbound' | 'inbound') => setDirection(v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="outbound">Outbound</SelectItem>
