@@ -4,6 +4,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { triggerStageEntry } from './iris';
 
 // Helper: Generate dossier via DeepSeek (shared)
 async function generateDossierForRawSignal(raw: any, profile: any) {
@@ -40,6 +41,8 @@ Provide an internal strategic briefing in JSON format with these exact keys:
 - "estimated_sales_cycle": string (e.g., "3-5 Months")
 - "business_justification": string
 - "hurdles": string
+- "contact_qualification_guide": string
+In "contact_qualification_guide", provide 2-3 hyper-specific sentences telling the user exactly WHICH titles or personas to target at this company based on our offerings, WHERE to look (e.g., LinkedIn region/division flags), and exactly WHAT answers or attributes qualify them as a high-intent buyer for this deal.
 
 Output ONLY valid JSON.
 `;
@@ -218,8 +221,7 @@ export async function promotePotential(potentialId: string) {
 
   const dossier = potential.ai_dossier as any;
 
-  // 1. Corrected Insert into the 'leads' table
-  // Removed non-existent columns: user_signal_id, signal_id, title, country, lead_category
+  // Create lead opportunity
   const { data: lead, error: leadError } = await supabase
     .from('leads')
     .insert({
@@ -232,28 +234,20 @@ export async function promotePotential(potentialId: string) {
       business_justification: dossier.business_justification ?? null,
       deal_timeline: dossier.estimated_sales_cycle ?? null,
       status: 'new',
-      ai_coach_state: {}, // Initializing with an empty JSON object for Iris
+      ai_coach_state: {
+        ai_dossier: dossier
+      }, // Ready for Iris state engine tracking
     })
     .select()
     .single();
 
   if (leadError) throw new Error(`Lead promotion failed: ${leadError.message}`);
 
-  // 2. Corrected Insert into 'ai_coach_logs' table
-  // Changed 'insight' -> 'message', removed 'action_type', added mandatory enum 'type'
-  const { error: logError } = await supabase
-    .from('ai_coach_logs')
-    .insert({
-      lead_id: lead.id,
-      stage: 'new',
-      message: `Lead promoted from potential: ${potential.title ?? 'Untitled'}. Use the AI coach for next steps.`,
-      type: 'entry', // Matches your coach_log_type enum definition
-    });
-
-  if (logError) {
-    console.error('[promotePotential] Failed to create coach log:', logError.message);
-    // Non-blocking fallback or throw depending on preference:
-  }
+  // FIX: Replace manual database insert with Iris's structural playbook processor
+  await triggerStageEntry({
+    leadId: lead.id,
+    stage: 'new'
+  });
 
   // Mark potential as promoted
   await supabase

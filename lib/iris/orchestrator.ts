@@ -194,7 +194,16 @@ export class IrisOrchestrator {
     const title = interpolateTemplate(taskConfig.title, this.context);
     const channel = this.resolveChannel(taskConfig);
     const dueDate = addBusinessDays(new Date(), taskConfig.due_business_days);
-    const irisTip = taskConfig.iris_tip ? interpolateTemplate(taskConfig.iris_tip, this.context) : null;
+
+    // FIX: Dynamically swap the generic tip for the custom DeepSeek guide on the research task
+    let irisTip = taskConfig.iris_tip ? interpolateTemplate(taskConfig.iris_tip, this.context) : null;
+
+    if (taskConfig.id === 'research_contacts' && (this.lead.ai_coach_state as any)?.ai_dossier?.contact_qualification_guide) {
+      irisTip = (this.lead.ai_coach_state as any).ai_dossier.contact_qualification_guide;
+    } else if (taskConfig.id === 'research_contacts' && (this.lead as any).contact_qualification_guide) {
+      // Or if you mapped it directly to a column
+      irisTip = (this.lead as any).contact_qualification_guide;
+    }
 
     return {
       lead_id: this.lead.id,
@@ -204,7 +213,7 @@ export class IrisOrchestrator {
       channel,
       due_date: dueDate.toISOString(),
       required: taskConfig.required,
-      iris_tip: irisTip,
+      iris_tip: irisTip, // Renders dynamically inside TaskRow!
       auto_prompt: taskConfig.feedback_prompt?.trigger === 'on_create',
     };
   }

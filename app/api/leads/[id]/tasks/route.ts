@@ -34,3 +34,24 @@ export async function POST(
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    
+    const { data: tasks, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('lead_id', id)
+      .order('due_date', { ascending: true });
+
+    if (error) throw error;
+    return NextResponse.json(tasks || []);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

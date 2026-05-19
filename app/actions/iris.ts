@@ -1,3 +1,5 @@
+'use server';
+
 /**
  * /app/actions/iris.ts
  */

@@ -85,14 +85,44 @@ export default function IrisCoachSection() {
     const dbCachedDrafts = (lead?.ai_coach_state as Record<string, any>)?.ai_drafts || {};
     const unifiedDrafts = { ...dbCachedDrafts, ...localDrafts };
 
-    // FIX: Staged Preview Task Initialization lifecycle hook
-    useEffect(() => {
-        if (latestLog?.type === 'entry' && Array.isArray(latestLog.suggested_tasks) && stageTasks.length === 0) {
-            setStagedTasks(latestLog.suggested_tasks);
-        } else {
-            setStagedTasks(null);
-        }
-    }, [latestLog, stageTasks.length]);
+    // FIX: Smart Playbook Fallback Initialization lifecycle hook
+useEffect(() => {
+    if (!lead) return;
+    
+    // If there are already active tasks in this stage, hide the staging card
+    if (stageTasks.length > 0) {
+        setStagedTasks(null);
+        return;
+    }
+
+    // If it's a valid entry log and contains pre-calculated database suggested tasks, use them
+    if (latestLog?.type === 'entry' && Array.isArray(latestLog.suggested_tasks) && latestLog.suggested_tasks.length > 0) {
+        setStagedTasks(latestLog.suggested_tasks);
+        return;
+    }
+
+    // FALLBACK: If it's a legacy lead row with empty logs, read directly from the playbook config
+    const currentStageConfig = IRIS_PLAYBOOK[lead.status];
+    if (currentStageConfig && stageTasks.length === 0) {
+        // Map playbooks tokens to runtime staged task elements
+        const fallbackTasks = currentStageConfig.tasks
+            .filter(t => !t.depends_on?.length) // Target primary unblocked baseline tasks
+            .map(t => ({
+                lead_id: lead.id,
+                stage: lead.status,
+                task_config_id: t.id,
+                title: t.title.replace('{{lead.company_name}}', lead.company_name || 'Company'),
+                channel: t.channel === 'auto' ? 'email' : t.channel,
+                due_date: new Date(Date.now() + t.due_business_days * 24 * 60 * 60 * 1000).toISOString(),
+                required: t.required,
+                iris_tip: t.iris_tip || null,
+            }));
+        
+        setStagedTasks(fallbackTasks);
+    } else {
+        setStagedTasks(null);
+    }
+}, [latestLog, lead, stageTasks.length]);
 
     async function handleAiAction(actionKey: string) {
         if (!lead) return;

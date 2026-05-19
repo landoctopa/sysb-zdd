@@ -273,7 +273,7 @@ export async function submitFeedbackOptimistic(leadId: string, taskConfigId: str
 export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial<TaskRow>[]) {
   const currentTasks = $activeTasks.get();
   
-  // Staging optimistic additions cleanly
+  // 1. Generate local temporary tasks for instant UI responsiveness
   const optimisticTasks = tasks.map(t => ({ 
     ...t, 
     id: `temp-${Date.now()}-${Math.random()}`,
@@ -295,8 +295,17 @@ export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial
     });
 
     if (!res.ok) throw new Error();
-    toast.success('Tasks created');
+    
+    // FIX: Re-fetch the live task collection from the server to pull the real UUID strings
+    const tasksRes = await fetch(`/api/leads/${leadId}/tasks`);
+    if (tasksRes.ok) {
+      const freshTasks = await tasksRes.json();
+      $activeTasks.set(freshTasks); // Cleanly hydrates the workspace
+    }
+    
+    toast.success('Tasks unlocked successfully');
   } catch {
+    // Graceful rollback on network failure
     $activeTasks.set(currentTasks);
     toast.error('Failed to create tasks');
   }
