@@ -1,18 +1,12 @@
 /**
  * /lib/iris/playbook.config.ts
- *
- * Defines the sales process stages with tasks, exit criteria, and checkback rules.
- * This is the "brain" of Iris – all orchestration logic flows from this config.
  */
 
 import type { IrisStageConfig } from './types';
 
 export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
-  // ============================================================
-  // STAGE: new
-  // ============================================================
   new: {
-    goal: 'Qualify lead and establish first contact',
+    goal: 'Qualify lead and establish verified active contact',
     entry_message: {
       template: 'entry_briefing',
       context_fields: ['lead.company_name', 'lead.hotness_score', 'lead.trigger_alignment'],
@@ -24,11 +18,11 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
         channel: 'internal',
         due_business_days: 1,
         required: true,
-        iris_tip: 'Check LinkedIn, company website, or use Apollo/Lusha. Focus on titles like CEO, VP, Director.',
+        iris_tip: 'Check LinkedIn, company website, or use corporate data files. Target specific executive tracks.',
         feedback_prompt: {
           trigger: 'on_complete',
           questions: [
-            { id: 'decision_maker_found', text: 'Did you identify at least one decision maker?', options: ['Yes', 'No', 'Not sure'] },
+            { id: 'decision_maker_found', text: 'Did you identify at least one decision maker?', options: ['Yes', 'No'] },
             { id: 'decision_maker_name', text: 'Name and title of the main contact?', type: 'text' },
           ],
           saves_to: 'qualification.decision_maker',
@@ -38,7 +32,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       {
         id: 'initial_outreach',
         title: 'Send initial outreach to {{lead.company_name}}',
-        channel: 'auto', // will be resolved via channel_logic
+        channel: 'auto',
         due_business_days: 2,
         required: true,
         depends_on: ['research_contacts'],
@@ -47,7 +41,6 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
           default: 'email',
           override_if: [
             { condition: 'lead.contacts.some(c => c.linkedin_url !== null)', channel: 'linkedin', note: 'Try LinkedIn first' },
-            { condition: 'lead.contacts.some(c => c.phone !== null)', channel: 'phone', note: 'Phone call could work' },
           ],
         },
         ai_actions: ['draft_outreach_email', 'draft_linkedin_message'],
@@ -58,8 +51,8 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
         feedback_prompt: {
           trigger: 'on_complete',
           questions: [
-            { id: 'outcome', text: 'What was the outcome?', options: ['Positive reply', 'No reply', 'Negative reply', 'Meeting booked'] },
-            { id: 'channel_used', text: 'Which channel did you use?', options: ['Email', 'LinkedIn', 'Phone', 'Other'] },
+            { id: 'outcome', text: 'What was the outcome?', options: ['Meeting booked', 'Positive reply', 'No reply', 'Negative reply'] },
+            { id: 'channel_used', text: 'Which channel did you use?', options: ['Email', 'LinkedIn', 'Phone'] },
           ],
           saves_to: 'outreach.initial',
         },
@@ -70,7 +63,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       {
         id: 'new_no_activity_3d',
         trigger_after_business_days: 3,
-        condition: 'no_task_activity', // special sentinel
+        condition: 'no_task_activity',
         iris_message_template: 'gentle_nudge',
         suggested_actions: ['draft_outreach_email'],
       },
@@ -83,15 +76,12 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
     ],
     exit_criteria: [
-      { condition: 'coach_state.outreach.initial.outcome !== undefined', label: 'Initial outreach sent and outcome logged' },
-      { condition: 'coach_state.qualification.decision_maker_found === "Yes"', label: 'Decision maker identified' },
+      { condition: 'coach_state.outreach.initial.outcome === "Meeting booked" || coach_state.outreach.initial.outcome === "Positive reply"', label: 'Active outreach response confirmed' },
+      { condition: 'lead.contacts.length > 0', label: 'Minimum stakeholder mapped' },
     ],
-    exit_blocked_message: 'Complete research and outreach tasks, and log the outcome before moving to Contacted.',
+    exit_blocked_message: 'Establish clear active engagement or log a valid contact thread before advancing to Contacted.',
   },
 
-  // ============================================================
-  // STAGE: contacted
-  // ============================================================
   contacted: {
     goal: 'Establish engagement and secure a meeting',
     entry_message: {
@@ -177,9 +167,6 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     exit_blocked_message: 'You need to book a meeting with the lead before moving to Proposal.',
   },
 
-  // ============================================================
-  // STAGE: proposal
-  // ============================================================
   proposal: {
     goal: 'Deliver a tailored proposal/SOW',
     entry_message: {
@@ -258,9 +245,6 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     exit_blocked_message: 'Send the proposal and confirm requirements before moving to Negotiation.',
   },
 
-  // ============================================================
-  // STAGE: negotiation
-  // ============================================================
   negotiation: {
     goal: 'Agree on terms, address objections, close',
     entry_message: {
@@ -312,9 +296,6 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     exit_blocked_message: 'Resolve all objections and finalize contract terms before moving to Won.',
   },
 
-  // ============================================================
-  // STAGE: won
-  // ============================================================
   won: {
     goal: 'Generate internal summary and handoff',
     entry_message: {
@@ -347,12 +328,9 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
     ],
     checkback_rules: [],
-    exit_criteria: [], // no exit from won
+    exit_criteria: [],
   },
 
-  // ============================================================
-  // STAGE: lost
-  // ============================================================
   lost: {
     goal: 'Log reason for loss and archive',
     entry_message: {
