@@ -1,5 +1,5 @@
 'use client';
-
+// app/leads/[id]/ActivityFeed.tsx
 import React from 'react';
 import { useStore } from '@nanostores/react';
 import { $activeTasks, $activeCommunications } from '@/store/leadsStore';

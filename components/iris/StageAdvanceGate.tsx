@@ -1,5 +1,7 @@
 'use client';
 
+// components/iris/StageAdvanceGate.tsx
+
 import { useState, useTransition } from 'react';
 import { CheckCircle2, XCircle, ArrowRight, Loader2, AlertTriangle, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';

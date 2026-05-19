@@ -1,5 +1,7 @@
 'use client';
 
+// app/leads/[id]/ContactsManager.tsx
+
 import React, { useState } from 'react';
 import { useStore } from '@nanostores/react';
 import { $activeContacts } from '@/store/leadsStore';

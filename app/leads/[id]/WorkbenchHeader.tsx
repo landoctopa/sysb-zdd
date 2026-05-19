@@ -1,18 +1,9 @@
 'use client';
 
 import { useStore } from '@nanostores/react';
-import { $activeLead, updateLeadStatus, $isSyncing, $activeCoachLogs } from '@/store/leadsStore';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, Clock, Loader2 } from 'lucide-react';
-
-const STAGES = [
-  { value: 'new', label: 'New', color: 'text-blue-400' },
-  { value: 'contacted', label: 'Contacted', color: 'text-purple-400' },
-  { value: 'proposal', label: 'Proposal', color: 'text-amber-400' },
-  { value: 'negotiation', label: 'Negotiation', color: 'text-orange-400' },
-  { value: 'won', label: 'Won', color: 'text-emerald-400' },
-  { value: 'lost', label: 'Lost', color: 'text-rose-400' },
-];
+import { $activeLead } from '@/store/leadsStore';
+import { TrendingUp, Clock } from 'lucide-react';
+import { StageSelector } from '@/components/iris/StageAdvanceGate';
 
 const getProgressPercent = (status: string | null): number => {
   switch (status) {
@@ -27,22 +18,9 @@ const getProgressPercent = (status: string | null): number => {
 
 export default function WorkbenchHeader() {
   const lead = useStore($activeLead);
-  const isSyncing = useStore($isSyncing);
-
   if (!lead) return null;
 
   const progress = getProgressPercent(lead.status);
-
-  const handleStageChange = async (newStatus: string) => {
-    await updateLeadStatus(newStatus);
-    // After status update, refresh coach
-    const res = await fetch(`/api/leads/${lead.id}/coach`, { method: 'POST' });
-    if (res.ok) {
-      const newLog = await res.json();
-      const currentLogs = $activeCoachLogs.get();
-      $activeCoachLogs.set([newLog, ...currentLogs]);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -60,33 +38,8 @@ export default function WorkbenchHeader() {
         </div>
       </div>
 
-      {/* Stage selector */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Pipeline Stage
-          </label>
-          {isSyncing && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>Updating...</span>
-            </div>
-          )}
-        </div>
-
-        <Select value={lead.status ?? undefined} onValueChange={handleStageChange}>
-          <SelectTrigger className="w-full h-11 rounded-lg bg-muted/30 border-border/60 font-medium">
-            <SelectValue placeholder="Select stage" />
-          </SelectTrigger>
-          <SelectContent>
-            {STAGES.map((stage) => (
-              <SelectItem key={stage.value} value={stage.value} className={stage.color}>
-                {stage.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Stage selector with Iris gate */}
+      <StageSelector lead={lead} coachState={(lead.ai_coach_state as Record<string, any>) || {}} />
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-4">
@@ -99,7 +52,6 @@ export default function WorkbenchHeader() {
           </div>
           <p className="text-2xl font-bold text-foreground">{lead.hotness_score || 0}%</p>
         </div>
-
         <div className="bg-muted/30 rounded-lg p-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

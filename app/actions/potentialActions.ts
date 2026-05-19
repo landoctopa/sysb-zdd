@@ -216,19 +216,15 @@ export async function promotePotential(potentialId: string) {
     throw new Error('Dossier not generated yet');
   }
 
-  const dossier = potential.ai_dossier;
+  const dossier = potential.ai_dossier as any;
 
-  // Create lead
+  // 1. Corrected Insert into the 'leads' table
+  // Removed non-existent columns: user_signal_id, signal_id, title, country, lead_category
   const { data: lead, error: leadError } = await supabase
     .from('leads')
     .insert({
       user_id: user.id,
-      user_signal_id: potential.id,
-      signal_id: potential.raw_signal_id,
       company_name: potential.company_name,
-      title: potential.title,
-      country: potential.country,
-      lead_category: potential.event_category,
       hotness_score: dossier.hotness_score ?? potential.match_score ?? 0,
       strategic_analysis: dossier.strategic_analysis ?? null,
       trigger_alignment: dossier.trigger_alignment ?? null,
@@ -236,19 +232,28 @@ export async function promotePotential(potentialId: string) {
       business_justification: dossier.business_justification ?? null,
       deal_timeline: dossier.estimated_sales_cycle ?? null,
       status: 'new',
+      ai_coach_state: {}, // Initializing with an empty JSON object for Iris
     })
     .select()
     .single();
 
   if (leadError) throw new Error(`Lead promotion failed: ${leadError.message}`);
 
-  // Create initial coach log
-  await supabase.from('ai_coach_logs').insert({
-    lead_id: lead.id,
-    stage: 'new',
-    insight: `Lead promoted from potential: ${potential.title ?? 'Untitled'}. Use the AI coach for next steps.`,
-    action_type: 'none',
-  });
+  // 2. Corrected Insert into 'ai_coach_logs' table
+  // Changed 'insight' -> 'message', removed 'action_type', added mandatory enum 'type'
+  const { error: logError } = await supabase
+    .from('ai_coach_logs')
+    .insert({
+      lead_id: lead.id,
+      stage: 'new',
+      message: `Lead promoted from potential: ${potential.title ?? 'Untitled'}. Use the AI coach for next steps.`,
+      type: 'entry', // Matches your coach_log_type enum definition
+    });
+
+  if (logError) {
+    console.error('[promotePotential] Failed to create coach log:', logError.message);
+    // Non-blocking fallback or throw depending on preference:
+  }
 
   // Mark potential as promoted
   await supabase

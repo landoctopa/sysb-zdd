@@ -1,4 +1,5 @@
 'use client';
+// app/leads/[id]/StrategyCard.tsx
 
 import React, { useState } from 'react';
 import { useStore } from '@nanostores/react';

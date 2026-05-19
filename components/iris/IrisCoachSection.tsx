@@ -1,4 +1,5 @@
 'use client';
+// components/iris/IrisCoachSection.tsx
 
 import { useState, useTransition } from 'react';
 import { useStore } from '@nanostores/react';

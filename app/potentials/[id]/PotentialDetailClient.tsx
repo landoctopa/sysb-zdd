@@ -1,5 +1,7 @@
 'use client';
 
+// app/potentials/[id]/PotentialDetailClient.tsx
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
