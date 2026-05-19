@@ -2,9 +2,9 @@
 
 // app/leads/[id]/ContactsManager.tsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useStore } from '@nanostores/react';
-import { $activeContacts } from '@/store/leadsStore';
+import { $activeContacts, $uiAddContactModalOpen } from '@/store/leadsStore'; // Listen to global UI state atom
 import { Users, Plus, UserPlus, Mail, Phone, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,17 +15,14 @@ import { buildGmailUrl } from '@/lib/url-helpers';
 import { toast } from 'sonner';
 
 const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
 };
 
 export default function ContactsManager() {
   const contacts = useStore($activeContacts);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // FIX: Read layout modal state from the atomic framework directly
+  const isModalOpen = useStore($uiAddContactModalOpen);
 
   const handleMail = (email: string | null | undefined) => {
     if (email) {
@@ -48,7 +45,13 @@ export default function ContactsManager() {
             </Badge>
           )}
         </h3>
-        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => setIsModalOpen(true)}>
+        {/* FIX: Set global atomic layout state directly on click */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs gap-1 cursor-pointer"
+          onClick={() => $uiAddContactModalOpen.set(true)}
+        >
           <Plus className="h-3 w-3" />
           Add Person
         </Button>
@@ -65,28 +68,28 @@ export default function ContactsManager() {
       ) : (
         <div className="space-y-3">
           {contacts.map((contact) => (
-            <Card
-              key={contact.id}
-              className="border-border/60 hover:border-primary/30 transition-all duration-200"
-            >
+            <Card key={contact.id} className="border-border/60 hover:border-primary/30 transition-all duration-200">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0">
-                    <span className="text-xs font-bold text-primary">
-                      {getInitials(contact.name || '?')}
-                    </span>
+                    <span className="text-xs font-bold text-primary">{getInitials(contact.name || '?')}</span>
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-semibold truncate text-foreground">
                       {contact.name}
                     </h4>
+                    {/* Map contact.title to contact.role */}
                     <p className="text-[11px] text-muted-foreground truncate">
-                      {contact.title || 'Stakeholder'}
+                      {contact.role || 'Stakeholder'}
                     </p>
-                    {contact.label && (
-                      <Badge variant="outline" className="text-[9px] mt-1 px-1.5">
-                        {contact.label}
+                    {/* Map contact.label to contact.is_decision_maker boolean badge */}
+                    {contact.is_decision_maker && (
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] mt-1 px-1.5 border-violet-500/20 text-violet-600 bg-violet-500/5 dark:text-violet-400 dark:bg-violet-500/10"
+                      >
+                        Decision Maker
                       </Badge>
                     )}
                   </div>
@@ -94,21 +97,16 @@ export default function ContactsManager() {
                   <div className="flex items-center gap-1 shrink-0">
                     {contact.linkedin_url && (
                       <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                        <a href={contact.linkedin_url} target="_blank" rel="noreferrer">
-                          <LinkedInIcon size={14} />
-                        </a>
+                        <a href={contact.linkedin_url} target="_blank" rel="noreferrer"><LinkedInIcon size={14} /></a>
                       </Button>
                     )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMail(contact.email)}>
                       <Mail className="h-3.5 w-3.5" />
                     </Button>
-                    {/* Phone button - you can similarly implement a call link or prompt */}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => contact.phone && window.open(`tel:${contact.phone}`)}>
                       <Phone className="h-3.5 w-3.5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-3.5 w-3.5" />
-                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -116,7 +114,8 @@ export default function ContactsManager() {
           ))}
         </div>
       )}
-      <AddContactModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+      {/* FIX: Bind modal handler cleanly to atomic lifecycle setter tracks */}
+      <AddContactModal open={isModalOpen} onOpenChange={(v) => $uiAddContactModalOpen.set(v)} />
     </section>
   );
 }

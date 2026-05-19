@@ -1,5 +1,7 @@
 'use client';
 
+// app/leads/PipelineView.tsx
+
 import React, { useState } from 'react';
 import { useStore } from '@nanostores/react';
 import { $leadsList } from '@/store/leadsStore';
@@ -9,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import {
   TrendingUp,
   Clock,
-  Building2,
   Users,
   FileText,
   Handshake,
@@ -63,21 +64,6 @@ const STAGE_CONFIG: Record<
   },
 };
 
-const getLeadCategoryStyle = (category: string | null) => {
-  const styles: Record<string, string> = {
-    'Strategic Lead':
-      'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-    'Target Account':
-      'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    'Existing Customer':
-      'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    Partner: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  };
-  return category
-    ? styles[category] || 'bg-gray-500/10 text-gray-400 border-gray-500/20'
-    : 'bg-gray-500/10 text-gray-400 border-gray-500/20';
-};
-
 const getHotnessColor = (score: number | null) => {
   if (!score) return 'text-muted-foreground';
   if (score >= 80) return 'text-emerald-400';
@@ -112,13 +98,10 @@ export default function PipelineView() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Opportunity Pipeline</h1>
-            <p className="text-muted-foreground mt-1">
-              Track and manage your sales opportunities
-            </p>
+            <p className="text-muted-foreground mt-1">Track and manage your sales opportunities</p>
           </div>
           <Button className="shadow-sm gap-2">
-            <Plus className="h-4 w-4" />
-            Add Lead
+            <Plus className="h-4 w-4" /> Add Lead
           </Button>
         </div>
 
@@ -135,8 +118,7 @@ export default function PipelineView() {
               <Link href="/signals">Browse Signals</Link>
             </Button>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Lead
+              <Plus className="mr-2 h-4 w-4" /> Create Lead
             </Button>
           </div>
         </div>
@@ -146,13 +128,11 @@ export default function PipelineView() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Header Layout Component */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Opportunity Pipeline</h1>
-          <p className="text-muted-foreground mt-1">
-            Track deal progress and manage your sales workflow
-          </p>
+          <p className="text-muted-foreground mt-1">Track deal progress and manage your sales workflow</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -178,53 +158,40 @@ export default function PipelineView() {
           </div>
 
           <Button className="shadow-sm gap-2">
-            <Plus className="h-4 w-4" />
-            Add Lead
+            <Plus className="h-4 w-4" /> Add Lead
           </Button>
         </div>
       </div>
 
-      {/* Metrics Row */}
+      {/* Overview Analytics row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Total Leads
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Total Leads</p>
             <p className="text-2xl font-bold text-foreground">{totalLeads}</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Active Opportunities
-            </p>
-            <p className="text-2xl font-bold text-foreground">
-              {totalLeads - wonLeads}
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Active Opportunities</p>
+            <p className="text-2xl font-bold text-foreground">{totalLeads - wonLeads}</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Won Deals
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Won Deals</p>
             <p className="text-2xl font-bold text-emerald-400">{wonLeads}</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-              Conversion Rate
-            </p>
-            <p className="text-2xl font-bold text-foreground">
-              {conversionRate}%
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Conversion Rate</p>
+            <p className="text-2xl font-bold text-foreground">{conversionRate}%</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pipeline View */}
+      {/* Main Framework Modes Interface Switch */}
       {viewMode === 'pipeline' ? (
         <>
           <div className="overflow-x-auto pb-2 scrollbar-hide">
@@ -239,30 +206,15 @@ export default function PipelineView() {
                   <button
                     key={stage}
                     onClick={() => setSelectedStage(stage)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap cursor-pointer ${
                       isActive
                         ? `${config.bgColor} border-primary/50 shadow-sm`
                         : 'bg-background border-border/60 hover:border-primary/30'
                     }`}
                   >
-                    <Icon
-                      className={`h-4 w-4 ${
-                        isActive ? config.color : 'text-muted-foreground'
-                      }`}
-                    />
-                    <span
-                      className={`text-sm font-medium capitalize ${
-                        isActive ? 'text-foreground' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {config.label}
-                    </span>
-                    <Badge
-                      variant={isActive ? 'default' : 'secondary'}
-                      className="ml-1 h-5 min-w-[20px] px-1 text-[10px]"
-                    >
-                      {count}
-                    </Badge>
+                    <Icon className={`h-4 w-4 ${isActive ? config.color : 'text-muted-foreground'}`} />
+                    <span className={`text-sm font-medium capitalize ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>{config.label}</span>
+                    <Badge variant={isActive ? 'default' : 'secondary'} className="ml-1 h-5 min-w-[20px] px-1 text-[10px]">{count}</Badge>
                   </button>
                 );
               })}
@@ -275,9 +227,7 @@ export default function PipelineView() {
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/30 mb-4">
                   <Target className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-1">
-                  No leads in {STAGE_CONFIG[selectedStage]?.label.toLowerCase()}
-                </h3>
+                <h3 className="text-lg font-semibold mb-1">No leads in {STAGE_CONFIG[selectedStage]?.label.toLowerCase()}</h3>
                 <p className="text-sm text-muted-foreground">
                   {selectedStage === 'new'
                     ? 'Add leads from signals or create a new opportunity to get started.'
@@ -286,37 +236,19 @@ export default function PipelineView() {
               </div>
             ) : (
               getLeadsByStage(selectedStage).map((lead) => (
-                <Link
-                  href={`/leads/${lead.id}`}
-                  key={lead.id}
-                  className="block group"
-                >
+                <Link href={`/leads/${lead.id}`} key={lead.id} className="block group">
                   <Card className="border-border/60 hover:border-primary/50 hover:shadow-md transition-all duration-200 cursor-pointer">
                     <div className="p-5">
                       <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 mb-2">
-                            {lead.lead_category && (
-                              <Badge
-                                variant="outline"
-                                className={`text-[10px] font-semibold px-2 py-0.5 ${getLeadCategoryStyle(
-                                  lead.lead_category
-                                )}`}
-                              >
-                                {lead.lead_category}
-                              </Badge>
-                            )}
                             <h3 className="font-semibold text-base leading-tight text-foreground line-clamp-2 flex-1">
                               {lead.company_name || 'Untitled Lead'}
                             </h3>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                            <span
-                              className={`flex items-center gap-1.5 font-medium ${getHotnessColor(
-                                lead.hotness_score
-                              )}`}
-                            >
+                            <span className={`flex items-center gap-1.5 font-medium ${getHotnessColor(lead.hotness_score)}`}>
                               <TrendingUp className="h-3.5 w-3.5" />
                               {lead.hotness_score || 0}% Fit
                             </span>
@@ -328,21 +260,15 @@ export default function PipelineView() {
                             )}
                             {lead.created_at && (
                               <span className="flex items-center gap-1.5 text-[11px]">
-                                Added{' '}
-                                {new Date(lead.created_at).toLocaleDateString()}
+                                Added {new Date(lead.created_at).toLocaleDateString()}
                               </span>
                             )}
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0 ml-auto lg:ml-0">
-                          <Badge
-                            className={`${
-                              STAGE_CONFIG[lead.status || 'new']?.bgColor
-                            } text-[10px] font-medium px-2 py-1 capitalize`}
-                          >
-                            {STAGE_CONFIG[lead.status || 'new']?.label ||
-                              lead.status}
+                          <Badge className={`${STAGE_CONFIG[lead.status || 'new']?.bgColor} text-[10px] font-medium px-2 py-1 capitalize`}>
+                            {STAGE_CONFIG[lead.status || 'new']?.label || lead.status}
                           </Badge>
                           <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
@@ -355,48 +281,30 @@ export default function PipelineView() {
           </div>
         </>
       ) : (
+        /* Standalone Sub-View List Tracker Loop Filter Section */
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-muted-foreground">
-              {totalLeads} total leads
-            </p>
+            <p className="text-sm text-muted-foreground">{totalLeads} total leads</p>
             <Button variant="ghost" size="sm" className="gap-1">
               Sort by <ChevronDown className="h-4 w-4" />
             </Button>
           </div>
 
           {leads.map((lead) => (
-            <Link
-              href={`/leads/${lead.id}`}
-              key={lead.id}
-              className="block group"
-            >
+            <Link href={`/leads/${lead.id}`} key={lead.id} className="block group">
               <Card className="border-border/60 hover:border-primary/50 hover:shadow-md transition-all duration-200 cursor-pointer">
                 <div className="p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        {lead.lead_category && (
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] font-semibold px-2 py-0.5 ${getLeadCategoryStyle(
-                              lead.lead_category
-                            )}`}
-                          >
-                            {lead.lead_category}
-                          </Badge>
-                        )}
+                        {/* FIX: Removed 'lead_category' condition logic wrapper cleanly */}
                         <h3 className="font-semibold text-base text-foreground">
                           {lead.company_name || 'Untitled Lead'}
                         </h3>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                        <span
-                          className={`flex items-center gap-1.5 ${getHotnessColor(
-                            lead.hotness_score
-                          )}`}
-                        >
+                        <span className={`flex items-center gap-1.5 ${getHotnessColor(lead.hotness_score)}`}>
                           <TrendingUp className="h-3.5 w-3.5" />
                           {lead.hotness_score || 0}% Fit
                         </span>
@@ -410,13 +318,8 @@ export default function PipelineView() {
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
-                      <Badge
-                        className={`${
-                          STAGE_CONFIG[lead.status || 'new']?.bgColor
-                        } text-[10px] font-medium px-2 py-1 capitalize whitespace-nowrap`}
-                      >
-                        {STAGE_CONFIG[lead.status || 'new']?.label ||
-                          lead.status}
+                      <Badge className={`${STAGE_CONFIG[lead.status || 'new']?.bgColor} text-[10px] font-medium px-2 py-1 capitalize whitespace-nowrap`}>
+                        {STAGE_CONFIG[lead.status || 'new']?.label || lead.status}
                       </Badge>
                       <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                     </div>

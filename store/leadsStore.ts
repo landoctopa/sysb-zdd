@@ -21,6 +21,7 @@ export const $activeTasks = atom<TaskRow[]>([]);
 export const $activeCoachLogs = atom<CoachLogRow[]>([]);
 export const $activeCommunications = atom<CommunicationRow[]>([]);
 export const $isSyncing = atom<boolean>(false);
+export const $uiAddContactModalOpen = atom<boolean>(false);
 
 // --- Helper: Update lead metadata (ai_coach_state) ---
 export async function updateLeadMetadata(leadId: string, answers: Record<string, any>) {

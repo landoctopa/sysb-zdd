@@ -19,7 +19,8 @@ import {
     ThumbsUp,
     Copy,
     Check,
-    Edit2
+    Edit2,
+    Plus // Added for contextual contact execution
 } from 'lucide-react';
 import { LinkedInIcon } from '@/components/icons/LinkedIn';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,8 @@ import {
     $activeLead, 
     $activeTasks, 
     $activeCoachLogs, 
+    $activeContacts, // Added to read live stakeholder metrics contextually
+    $uiAddContactModalOpen, // Added to coordinate modal launcher layers cleanly
     completeTaskOptimistic, 
     approveTaskOptimistic, 
     confirmStageTasksOptimistic,
@@ -36,6 +39,7 @@ import { IRIS_PLAYBOOK } from '@/lib/iris/playbook.config';
 import { IRIS_RESOURCES } from '@/lib/iris/resources.config';
 import { IrisFeedbackTrigger } from './IrisFeedbackPrompt';
 import { formatDueDate, isPast } from '@/lib/iris/template-utils';
+import { toast } from 'sonner';
 import type { TaskRow as StoreTaskRow, CoachLogRow } from '@/store/leadsStore';
 import type { LeadStage } from '@/lib/iris/types';
 
@@ -81,48 +85,48 @@ export default function IrisCoachSection() {
     // Filter live tasks explicitly active for this current tracking pipeline stage
     const stageTasks = tasks.filter(t => t.stage === lead?.status);
 
-    // FIX: Read deep persistent database cached copies safely to protect from refreshes
+    // Read deep persistent database cached copies safely to protect from refreshes
     const dbCachedDrafts = (lead?.ai_coach_state as Record<string, any>)?.ai_drafts || {};
     const unifiedDrafts = { ...dbCachedDrafts, ...localDrafts };
 
-    // FIX: Smart Playbook Fallback Initialization lifecycle hook
-useEffect(() => {
-    if (!lead) return;
-    
-    // If there are already active tasks in this stage, hide the staging card
-    if (stageTasks.length > 0) {
-        setStagedTasks(null);
-        return;
-    }
-
-    // If it's a valid entry log and contains pre-calculated database suggested tasks, use them
-    if (latestLog?.type === 'entry' && Array.isArray(latestLog.suggested_tasks) && latestLog.suggested_tasks.length > 0) {
-        setStagedTasks(latestLog.suggested_tasks);
-        return;
-    }
-
-    // FALLBACK: If it's a legacy lead row with empty logs, read directly from the playbook config
-    const currentStageConfig = IRIS_PLAYBOOK[lead.status];
-    if (currentStageConfig && stageTasks.length === 0) {
-        // Map playbooks tokens to runtime staged task elements
-        const fallbackTasks = currentStageConfig.tasks
-            .filter(t => !t.depends_on?.length) // Target primary unblocked baseline tasks
-            .map(t => ({
-                lead_id: lead.id,
-                stage: lead.status,
-                task_config_id: t.id,
-                title: t.title.replace('{{lead.company_name}}', lead.company_name || 'Company'),
-                channel: t.channel === 'auto' ? 'email' : t.channel,
-                due_date: new Date(Date.now() + t.due_business_days * 24 * 60 * 60 * 1000).toISOString(),
-                required: t.required,
-                iris_tip: t.iris_tip || null,
-            }));
+    // Smart Playbook Fallback Initialization lifecycle hook
+    useEffect(() => {
+        if (!lead) return;
         
-        setStagedTasks(fallbackTasks);
-    } else {
-        setStagedTasks(null);
-    }
-}, [latestLog, lead, stageTasks.length]);
+        // If there are already active tasks in this stage, hide the staging card
+        if (stageTasks.length > 0) {
+            setStagedTasks(null);
+            return;
+        }
+
+        // If it's a valid entry log and contains pre-calculated database suggested tasks, use them
+        if (latestLog?.type === 'entry' && Array.isArray(latestLog.suggested_tasks) && latestLog.suggested_tasks.length > 0) {
+            setStagedTasks(latestLog.suggested_tasks);
+            return;
+        }
+
+        // FALLBACK: If it's a legacy lead row with empty logs, read directly from the playbook config
+        const currentStageConfig = IRIS_PLAYBOOK[lead.status];
+        if (currentStageConfig && stageTasks.length === 0) {
+            // Map playbooks tokens to runtime staged task elements
+            const fallbackTasks = currentStageConfig.tasks
+                .filter(t => !t.depends_on?.length) // Target primary unblocked baseline tasks
+                .map(t => ({
+                    lead_id: lead.id,
+                    stage: lead.status,
+                    task_config_id: t.id,
+                    title: t.title.replace('{{lead.company_name}}', lead.company_name || 'Company'),
+                    channel: t.channel === 'auto' ? 'email' : t.channel,
+                    due_date: new Date(Date.now() + t.due_business_days * 24 * 60 * 60 * 1000).toISOString(),
+                    required: t.required,
+                    iris_tip: t.iris_tip || null,
+                }));
+            
+            setStagedTasks(fallbackTasks);
+        } else {
+            setStagedTasks(null);
+        }
+    }, [latestLog, lead, stageTasks.length]);
 
     async function handleAiAction(actionKey: string) {
         if (!lead) return;
@@ -179,7 +183,7 @@ useEffect(() => {
             {/* Latest Core Insight Feed */}
             {latestLog?.message && <IrisMessageCard log={latestLog} />}
 
-            {/* FIX: Interactive Playbook Initialization Staging Preview Block Layout */}
+            {/* Interactive Playbook Initialization Staging Preview Block Layout */}
             {stagedTasks && (
                 <div className="rounded-2xl border border-violet-200 dark:border-violet-800/40 bg-violet-500/[0.02] p-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="space-y-1">
@@ -304,6 +308,10 @@ interface TaskRowProps {
 function TaskRow({ task, lead, onAiAction, loadingAction, unifiedDrafts }: TaskRowProps) {
     const [gateMessage, setGateMessage] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
+    
+    // Connect to live workspace collections
+    const contacts = useStore($activeContacts);
+
     const isCompleted = task.status === 'completed';
     const isOverdue = !isCompleted && task.due_date && isPast(task.due_date);
     const ChannelIcon = CHANNEL_ICON[task.channel] ?? FileText;
@@ -315,7 +323,6 @@ function TaskRow({ task, lead, onAiAction, loadingAction, unifiedDrafts }: TaskR
         if (!task.task_config_id) return;
         setGateMessage(null);
         startTransition(async () => {
-            // Evaluates block conditions via store endpoints
             await completeTaskOptimistic(task.id, task.task_config_id!);
         });
     }
@@ -374,6 +381,56 @@ function TaskRow({ task, lead, onAiAction, loadingAction, unifiedDrafts }: TaskR
                         <p className="text-xs text-muted-foreground italic bg-muted/40 p-2.5 rounded-xl border border-border/30 mt-1.5 leading-relaxed">
                             💡 <span className="font-medium">Iris Tip:</span> {task.iris_tip}
                         </p>
+                    )}
+
+                    {/* Integrated Embedded Workspace Execution Trays */}
+                    {!isCompleted && (
+                        <div className="pt-1.5 animate-in fade-in duration-300">
+                            {/* Target 1: Mapped Contact Identification Tool */}
+                            {task.task_config_id === 'research_contacts' && (
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 bg-violet-500/[0.02] border border-violet-500/10 rounded-xl mt-2">
+                                    <div className="space-y-0.5 flex-1">
+                                        <p className="text-[11px] font-bold text-violet-800 dark:text-violet-400">Iris Execution Command</p>
+                                        <p className="text-[11px] text-muted-foreground">Once you lock down a target contact alignment option, record them directly into the stakeholders matrix below.</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => $uiAddContactModalOpen.set(true)}
+                                        className="flex items-center gap-1 rounded-lg bg-violet-600 text-white px-3 py-1.5 text-xs font-bold shadow-sm shadow-violet-500/10 hover:bg-violet-700 cursor-pointer active:scale-95 transition-all shrink-0"
+                                    >
+                                        <Plus className="h-3 w-3" /> Add Stakeholder
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Target 2: Live Communication Linkage Channels */}
+                            {(task.channel === 'email' || task.channel === 'linkedin') && contacts.length > 0 && (
+                                <div className="flex flex-col gap-2 p-3 bg-emerald-500/[0.02] border border-emerald-500/10 rounded-xl mt-2">
+                                    <div className="space-y-0.5">
+                                        <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-400">Active Pipeline Communication Channels</p>
+                                        <p className="text-[11px] text-muted-foreground">Launch communication scripts instantly for your mapped deal stakeholders:</p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {contacts.map(c => (
+                                            <button
+                                                key={c.id}
+                                                onClick={() => {
+                                                    if (task.channel === 'email' && c.email) {
+                                                        window.open(`mailto:${c.email}`);
+                                                    } else if (task.channel === 'linkedin' && c.linkedin_url) {
+                                                        window.open(c.linkedin_url, '_blank');
+                                                    } else {
+                                                        toast.info(`Missing contact properties for ${c.name}`);
+                                                    }
+                                                }}
+                                                className="rounded-lg border border-border bg-background hover:bg-muted text-[10px] font-bold px-2.5 py-1.5 shadow-sm cursor-pointer transition-all active:scale-95 text-foreground"
+                                            >
+                                                🚀 Message {c.name.split(' ')[0]} ({task.channel})
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -442,7 +499,7 @@ function TaskRow({ task, lead, onAiAction, loadingAction, unifiedDrafts }: TaskR
                     <div className="px-5 pb-4 space-y-3">
                         {taskConfig.ai_actions.map(actionKey => {
                             const content = unifiedDrafts[actionKey];
-                            if (!content) return null;
+                            if (!content || content.error) return null;
 
                             return (
                                 <div key={actionKey} className="rounded-xl border border-border/70 bg-background shadow-inner overflow-hidden animate-in fade-in duration-300">
