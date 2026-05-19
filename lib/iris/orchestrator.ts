@@ -1,9 +1,5 @@
 /**
  * /lib/iris/orchestrator.ts
- *
- * The central runtime engine. Reads from playbook.config and resources.config,
- * evaluates conditions against live lead+coach state, and produces all Iris
- * outputs. Runs server-side only.
  */
 
 import { IRIS_PLAYBOOK } from './playbook.config';
@@ -15,7 +11,6 @@ import type {
   LeadStage,
   CoachState,
   IrisTaskConfig,
-  IrisCheckbackRule,
   StageEntryResult,
   GateCheckResult,
   AiActionResult,
@@ -23,30 +18,23 @@ import type {
   EvalContext,
 } from './types';
 
-// ─── Orchestrator ─────────────────────────────────────────────────────────────
-
 export class IrisOrchestrator {
   private context: EvalContext;
   private lead: Lead;
   private coachState: CoachState;
+  private existingTasks: Task[];
 
-  constructor(lead: Lead, coachState: CoachState, userProfile?: any) {
+  constructor(lead: Lead, coachState: CoachState, userProfile?: any, existingTasks: Task[] = []) {
     this.lead = lead;
     this.coachState = coachState;
+    this.existingTasks = existingTasks;
     this.context = {
       lead: lead as any,
       coach_state: coachState,
-      user: userProfile, // optional, from profiles table
+      user: userProfile,
     };
   }
 
-  // ── Stage entry ─────────────────────────────────────────────────────────────
-
-  /**
-   * Called whenever a lead moves into a new stage.
-   * Returns the entry message and a list of suggested tasks (not yet created).
-   * The caller (server action) should present these to the user for confirmation.
-   */
   async onStageEntry(stage: LeadStage): Promise<StageEntryResult | null> {
     const config = IRIS_PLAYBOOK[stage];
     if (!config) {
@@ -54,29 +42,21 @@ export class IrisOrchestrator {
       return null;
     }
 
-    // Build entry message from template
     const messageTemplate = IRIS_RESOURCES.message_templates[config.entry_message.template];
     const message = interpolateTemplate(messageTemplate || '', this.context);
 
-    // Identify which tasks are unblocked (no unmet dependencies)
-    const completedTaskIds = await this.getCompletedTaskConfigIds();
+    // Compute exact unblocked tasks using the database task collection
+    const completedTaskIds = this.getCompletedTaskConfigIds();
     const unblocked = config.tasks.filter(task => {
       if (!task.depends_on?.length) return true;
       return task.depends_on.every(depId => completedTaskIds.has(depId));
     });
 
-    // Build task suggestions (not inserted into DB yet)
     const suggestedTasks = unblocked.map(taskConfig => this.buildSuggestedTask(taskConfig, stage));
 
     return { message, tasks: suggestedTasks };
   }
 
-  // ── Confirm task creation (user accepted the suggestion) ───────────────────
-
-  /**
-   * After user confirms a suggested task, this returns the full Task object
-   * ready to be inserted into the database.
-   */
   confirmTask(suggestion: Partial<Task>, stage: LeadStage): Partial<Task> {
     return {
       ...suggestion,
@@ -87,27 +67,17 @@ export class IrisOrchestrator {
     };
   }
 
-  // ── Feedback submission ─────────────────────────────────────────────────────
-
-  /**
-   * Called after user submits a task's feedback prompt.
-   * Merges answers into coach_state and runs any post_feedback_action.
-   * Returns an AI-generated result if the action produces one, else null.
-   */
   async onFeedbackSubmit(taskConfigId: string, answers: Record<string, any>): Promise<AiActionResult | null> {
     const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
     const taskConfig = config?.tasks.find(t => t.id === taskConfigId);
     if (!taskConfig?.feedback_prompt) return null;
 
-    // Merge answers into coach_state at the path defined by saves_to
     const savesTo = taskConfig.feedback_prompt.saves_to;
     const updatedCoachState = this.mergeIntoCoachState(savesTo, answers);
 
-    // Update internal context
     this.coachState = updatedCoachState;
     this.context.coach_state = updatedCoachState;
 
-    // Run post-feedback AI action if defined
     if (taskConfig.post_feedback_action) {
       return this.runAiAction(taskConfig.post_feedback_action);
     }
@@ -115,12 +85,6 @@ export class IrisOrchestrator {
     return null;
   }
 
-  // ── Task completion gate ────────────────────────────────────────────────────
-
-  /**
-   * Returns whether a task is allowed to be marked complete,
-   * based on its completion_gate condition and the current task row state.
-   */
   canCompleteTask(taskConfigId: string, taskRow: Partial<Task>): GateCheckResult {
     const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
     const taskConfig = config?.tasks.find(t => t.id === taskConfigId);
@@ -141,12 +105,6 @@ export class IrisOrchestrator {
       : { allowed: false, message: taskConfig.completion_gate.blocked_message };
   }
 
-  // ── Stage advance gate ──────────────────────────────────────────────────────
-
-  /**
-   * Returns whether the lead is allowed to advance to the next stage.
-   * Also returns per-criterion results for UI display.
-   */
   canAdvanceStage(): { allowed: boolean; criteriaResults: CriterionResult[]; blockedMessage?: string } {
     const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
     if (!config?.exit_criteria?.length) {
@@ -162,13 +120,6 @@ export class IrisOrchestrator {
     };
   }
 
-  // ── Checkback evaluation ────────────────────────────────────────────────────
-
-  /**
-   * Evaluates all checkback rules for the current stage against the lead's
-   * last activity date. Returns rules that should fire now.
-   * Called by the cron job.
-   */
   async evaluateCheckbacks(lastActivityDate: Date): Promise<
     Array<{ ruleId: string; message: string; suggestedActions: string[] }>
   > {
@@ -183,7 +134,7 @@ export class IrisOrchestrator {
 
       let conditionMet = false;
       if (rule.condition === 'no_task_activity') {
-        conditionMet = await this.hasNoTaskActivitySince(lastActivityDate);
+        conditionMet = this.hasNoTaskActivitySince(lastActivityDate);
       } else {
         conditionMet = evaluateCondition(rule.condition, this.context);
       }
@@ -199,20 +150,12 @@ export class IrisOrchestrator {
         suggestedActions: rule.suggested_actions,
       });
 
-      // Only fire the first matching rule to avoid spam
       break;
     }
 
     return triggered;
   }
 
-  // ── AI action runner ────────────────────────────────────────────────────────
-
-  /**
-   * Calls an AI action defined in IRIS_RESOURCES.ai_actions.
-   * Builds the context payload from the action's context_fields,
-   * posts to the configured endpoint, and returns the parsed result.
-   */
   async runAiAction(actionKey: string): Promise<AiActionResult | null> {
     const action = IRIS_RESOURCES.ai_actions[actionKey];
     if (!action) {
@@ -220,9 +163,7 @@ export class IrisOrchestrator {
       return null;
     }
 
-    // Build context object from the action's declared context_fields
     const actionContext = this.buildActionContext(action.context_fields);
-
     const payload = {
       system_prompt: action.system_prompt,
       context: actionContext,
@@ -248,8 +189,6 @@ export class IrisOrchestrator {
       return null;
     }
   }
-
-  // ── Helpers ─────────────────────────────────────────────────────────────────
 
   private buildSuggestedTask(taskConfig: IrisTaskConfig, stage: LeadStage): Partial<Task> {
     const title = interpolateTemplate(taskConfig.title, this.context);
@@ -298,6 +237,7 @@ export class IrisOrchestrator {
 
     if (root === 'lead') current = this.lead;
     else if (root === 'coach_state') current = this.coachState;
+    else if (root === 'task') current = this.context.task ?? {};
     else if (root === 'user') current = this.context.user;
     else current = this.coachState?.[root];
 
@@ -309,7 +249,6 @@ export class IrisOrchestrator {
   }
 
   private mergeIntoCoachState(path: string, answers: Record<string, any>): CoachState {
-    // Simple deep merge – supports dot notation like "outreach.initial"
     const parts = path.split('.');
     let current: any = { ...this.coachState };
     let target = current;
@@ -323,17 +262,19 @@ export class IrisOrchestrator {
     return current;
   }
 
-  private async getCompletedTaskConfigIds(): Promise<Set<string>> {
-    // This would query the database. We'll implement this in the server action,
-    // not inside the orchestrator, to keep it pure. For now, return empty set.
-    // The caller (server action) will pass completed task IDs as a parameter.
-    return new Set();
+  private getCompletedTaskConfigIds(): Set<string> {
+    return new Set(
+      this.existingTasks
+        .filter(t => t.status === 'completed' && t.task_config_id)
+        .map(t => t.task_config_id!)
+    );
   }
 
-  private async hasNoTaskActivitySince(since: Date): Promise<boolean> {
-    // This would query the database. We'll implement in the caller.
-    // For orchestrator purity, we accept a flag or query result.
-    // For now, assume false (no checkback will fire based on this alone).
-    return false;
+  private hasNoTaskActivitySince(since: Date): boolean {
+    const activityCount = this.existingTasks.filter(t => {
+      const date = new Date(t.completed_at || t.updated_at || t.created_at);
+      return date > since;
+    }).length;
+    return activityCount === 0;
   }
 }
