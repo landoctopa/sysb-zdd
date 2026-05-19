@@ -163,29 +163,74 @@ export class IrisOrchestrator {
       return null;
     }
 
+    // 1. Compile the required context fields locally on the server
     const actionContext = this.buildActionContext(action.context_fields);
-    const payload = {
-      system_prompt: action.system_prompt,
-      context: actionContext,
-      output_format: action.output_format,
-      model: action.model,
-    };
+
+    // 2. Format context fields into structured string data lines
+    const contextStr = Object.entries(actionContext)
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+      .join('\n');
+
+    // 3. Match format rules exactly to prevent markdown block wrapping
+    let formatStr: string;
+    if (typeof action.output_format === 'string') {
+      formatStr = `Return as: ${action.output_format}. Return ONLY valid JSON.`;
+    } else {
+      formatStr = `Return a JSON object with these exact keys: ${JSON.stringify(action.output_format)}. Return ONLY the JSON, no markdown fences or extra text.`;
+    }
+
+    const userMessage = `Context:\n${contextStr}\n\n${formatStr}`;
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+
+    if (!apiKey) {
+      console.error('[IrisOrchestrator] Missing DEEPSEEK_API_KEY environment variable');
+      return null;
+    }
 
     try {
-      const res = await fetch(action.endpoint, {
+      // 4. Connect directly to DeepSeek, bypassing the relative endpoint hop
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: action.model || 'deepseek-chat',
+          messages: [
+            { role: 'system', content: action.system_prompt },
+            { role: 'user', content: userMessage },
+          ],
+          temperature: 0.7,
+          max_tokens: 1500,
+        }),
       });
 
       if (!res.ok) {
-        console.error(`[IrisOrchestrator] AI action ${actionKey} failed: ${res.status}`);
+        const errorText = await res.text();
+        console.error(`[IrisOrchestrator] DeepSeek direct API error ${res.status}: ${errorText}`);
         return null;
       }
 
-      return res.json();
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content || '';
+
+      // 5. Clean up any accidental markdown code blocks returned by the model
+      let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
+
+      try {
+        return JSON.parse(cleaned);
+      } catch {
+        // Fallback response parsing for non-JSON returns
+        return { body: text.trim() };
+      }
     } catch (err) {
-      console.error(`[IrisOrchestrator] AI action ${actionKey} error:`, err);
+      console.error(`[IrisOrchestrator] Direct AI action execution failed for ${actionKey}:`, err);
       return null;
     }
   }
