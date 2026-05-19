@@ -410,7 +410,7 @@ function TaskRow({ task, lead, onAiAction, loadingAction, unifiedDrafts }: TaskR
                             const def = ACTION_LABELS[actionKey];
                             if (!def) return null;
                             const Icon = def.icon;
-                            const isDone = Boolean(unifiedDrafts[actionKey]);
+                            const isDone = Boolean(unifiedDrafts[actionKey] && !unifiedDrafts[actionKey].error);
                             const isCurrentLoading = loadingAction === actionKey;
 
                             return (
