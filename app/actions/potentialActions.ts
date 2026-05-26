@@ -3,336 +3,141 @@
 
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
-import { triggerStageEntry } from './iris';
-
-// Helper: Generate dossier via DeepSeek (shared)
-async function generateDossierForRawSignal(raw: any, profile: any) {
-  console.log('[Dossier] Starting generation for:', raw.title);
-  console.log('[Dossier] Raw signal data:', {
-    company_name: raw.company_name,
-    title: raw.title,
-    description: raw.description?.substring(0, 100),
-    event_category: raw.event_category,
-  });
-
-  const prompt = `
-You are a Senior Strategic Analyst for ${profile.full_name}.
-
-OUR BUSINESS PROFILE:
-- Description: ${profile.description}
-- Specific Offerings: ${JSON.stringify(profile.offerings)}
-- Relevant Track Record: ${JSON.stringify(profile.past_projects)}
-- Ideal Customer Alignment: ${JSON.stringify(profile.ideal_customer_profile)}
-
-THE OPPORTUNITY:
-- Company: ${raw.company_name}
-- News Event: "${raw.title}"
-- Context: "${raw.description}"
-- Event Category: ${raw.event_category}
-
-TASK:
-Analyze this signal to determine if it should be qualified as a sales lead.
-Provide an internal strategic briefing in JSON format with these exact keys:
-
-- "strategic_analysis": string
-- "trigger_alignment": string
-- "hotness_score": integer (1-100)
-- "estimated_sales_cycle": string (e.g., "3-5 Months")
-- "business_justification": string
-- "hurdles": string
-- "contact_qualification_guide": string
-In "contact_qualification_guide", provide 2-3 hyper-specific sentences telling the user exactly WHICH titles or personas to target at this company based on our offerings, WHERE to look (e.g., LinkedIn region/division flags), and exactly WHAT answers or attributes qualify them as a high-intent buyer for this deal.
-
-Output ONLY valid JSON.
-`;
-
-  console.log('[Dossier] Calling DeepSeek API...');
-  const res = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      messages: [
-        { role: 'system', content: 'You are a professional business analyst. Output valid JSON.' },
-        { role: 'user', content: prompt },
-      ],
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error('[Dossier] DeepSeek API error:', res.status, errorText);
-    throw new Error(`DeepSeek API error: ${res.status} ${errorText}`);
-  }
-
-  const data = await res.json();
-  console.log('[Dossier] DeepSeek response received');
-  const dossier = JSON.parse(data.choices[0].message.content);
-  console.log('[Dossier] Parsed dossier:', dossier);
-  return dossier;
-}
+import { VirtualSignalState } from '@/types/signals';
 
 /**
- * Copy a raw signal to user_signals (potential), generate dossier, and redirect.
+ * Promotes a stateless browser-triaged signal directly into the core Leads ledger
+ * and seeds the unified actions timeline with Iris's pre-generated strategic analysis.
  */
-export async function copyRawToPotential(rawSignalId: string) {
+export async function promotePotential(signalId: string, virtualState: VirtualSignalState) {
   try {
     const supabase = await createClient();
+
+    // 1. Authenticate user session context
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
-    // 1. Fetch raw signal
-    const { data: raw, error: rawError } = await supabase
+    // 2. Fetch raw signal data to preserve immutable trigger context
+    const { data: rawSignal, error: rawError } = await supabase
       .from('raw_signals')
       .select('*')
-      .eq('id', rawSignalId)
+      .eq('id', signalId)
       .single();
-    if (rawError || !raw) throw new Error('Raw signal not found');
 
-    // 2. Check if already copied
-    const { data: existing } = await supabase
-      .from('user_signals')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('raw_signal_id', raw.id)
-      .single();
-    if (existing) {
-      redirect(`/potentials/${existing.id}`);
-    }
+    if (rawError || !rawSignal) throw new Error('Source market signal no longer exists.');
 
-    // 3. Fetch user profile for dossier context
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('full_name, description, offerings, past_projects, ideal_customer_profile')
-      .eq('id', user.id)
-      .single();
-    if (profileError || !profile) throw new Error('Profile not found');
+    const dossier = virtualState.ai_dossier;
 
-    // 4. Generate dossier
-    const dossier = await generateDossierForRawSignal(raw, profile);
-
-    // 5. Insert into user_signals (no published_at column)
-    const { data: newPotential, error: insertError } = await supabase
-      .from('user_signals')
+    // 3. Create the row directly inside the central leads ledger
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
       .insert({
         user_id: user.id,
-        raw_signal_id: raw.id,
-        title: raw.title,
-        description: raw.description,
-        company_name: raw.company_name,
-        country: raw.country,
-        sectors: raw.sectors,
-        event_category: raw.event_category,
-        link: raw.link,
-        status: 'new',
-        ai_dossier: dossier,
-        match_score: dossier.hotness_score,
-        source: 'raw',
+        raw_signal_id: signalId,
+        company_name: rawSignal.company_name || 'Unknown Company',
+        status: 'potential', // Initializes our stage taxonomy tracker
+        hotness_score: dossier.hotness_score || 0,
+        
+        // Deep-freeze the contextual research and triage checks
+        ai_coach_state: {
+          ai_dossier: dossier,
+          stage_history: {
+            signal: {
+              completed_at: new Date().toISOString(),
+              assessment: virtualState.tasks.assess_signal_relevance.answers,
+              extracted_contacts: virtualState.tasks.extract_potential_contacts.answers
+            }
+          }
+        },
+        
+        // Map data properties directly to columns
+        strategic_analysis: dossier.strategic_analysis || null,
+        trigger_alignment: dossier.trigger_alignment || null,
+        strategic_hurdles: dossier.hurdles || null,
+        business_justification: dossier.business_justification || null,
+        deal_timeline: dossier.estimated_sales_cycle || null,
       })
       .select()
       .single();
 
-    if (insertError) throw new Error(`Failed to copy signal: ${insertError.message}`);
+    if (leadError) throw new Error(`Lead instantiation rejected: ${leadError.message}`);
 
-    // 6. Redirect to potential detail page
-    redirect(`/potentials/${newPotential.id}`);
-  } catch (err) {
-    // If it's a redirect, rethrow it (let Next.js handle it)
-    if (err && typeof err === 'object' && 'digest' in err && (err as any).digest?.startsWith('NEXT_REDIRECT')) {
-      throw err;
+    // 4. Seed the polymorphic actions ledger with required fields matching your fresh Postgres constraints
+    const { error: actionsError } = await supabase
+      .from('actions')
+      .insert([
+        {
+          lead_id: lead.id,
+          stage: 'potential',             // Explicitly passes your lead_status enum rule
+          type: 'notification',           // Polymorphic type
+          channel: 'iris',                // Driven by Iris
+          status: 'completed',            // Instantly marked as historical timeline item
+          title: 'Iris Fit Justification briefing',
+          body: dossier.business_justification || 'No justification provided.',
+          due_date: new Date().toISOString(),
+          required: false
+        },
+        {
+          lead_id: lead.id,
+          stage: 'potential',
+          type: 'notification',
+          channel: 'iris',
+          status: 'completed',
+          title: 'Iris Threat & Hurdle evaluation',
+          body: dossier.hurdles || 'No immediate structural hurdles identified.',
+          due_date: new Date().toISOString(),
+          required: false
+        }
+      ]);
+
+    if (actionsError) {
+      console.error('[Warning]: Unified action log seeding dropped:', actionsError.message);
     }
-    console.error('[copyRawToPotential] Error:', err);
+
+    // 5. Invalidate layout caches to force instant DOM updates
+    revalidatePath('/signals');
+    revalidatePath('/leads');
+
+    // Return the fresh ID reference back to the client router loop
+    return { leadId: lead.id };
+
+  } catch (err: any) {
+    console.error('[promotePotential Exception Boundary]:', err);
+    throw new Error(err.message || 'Database transaction runtime failure.');
+  }
+}
+
+/**
+ * Commits a signal ID to the suppression table to remove it from the user's feed
+ * without polluting the core leads metrics portfolio.
+ */
+export async function dismissSignal(signalId: string) {
+  try {
+    const supabase = await createClient();
+
+    // Authenticate user session context
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    // Write to the suppression ledger index
+    const { error } = await supabase
+      .from('dismissed_signals')
+      .insert({
+        user_id: user.id,
+        raw_signal_id: signalId
+      });
+
+    if (error) {
+      // If it's a duplicate insertion error, fail gracefully since it's already dismissed
+      if (error.code !== '23505') throw error;
+    }
+
+    // Refresh layout view boundaries
+    revalidatePath('/signals');
+    return { success: true };
+
+  } catch (err) {
+    console.error('[dismissSignal Exception Handler]:', err);
     throw err;
   }
-}
-
-/**
- * Regenerate dossier for an existing potential (e.g., if it failed or is empty)
- */
-export async function regenerateDossier(potentialId: string) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error('Unauthorized');
-
-  // Fetch potential
-  const { data: potential, error: fetchError } = await supabase
-    .from('user_signals')
-    .select('*')
-    .eq('id', potentialId)
-    .eq('user_id', user.id)
-    .single();
-  if (fetchError || !potential) throw new Error('Potential not found');
-
-  // Fetch profile
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('full_name, description, offerings, past_projects, ideal_customer_profile')
-    .eq('id', user.id)
-    .single();
-  if (profileError || !profile) throw new Error('Profile not found');
-
-  // Build raw-like object from potential (or use its own raw_signal_id if needed)
-  const rawLike = {
-    company_name: potential.company_name,
-    title: potential.title,
-    description: potential.description,
-    event_category: potential.event_category,
-  };
-  const dossier = await generateDossierForRawSignal(rawLike, profile);
-
-  // Update potential with new dossier
-  const { error: updateError } = await supabase
-    .from('user_signals')
-    .update({
-      ai_dossier: dossier,
-      match_score: dossier.hotness_score,
-    })
-    .eq('id', potential.id);
-
-  if (updateError) throw new Error(`Failed to regenerate dossier: ${updateError.message}`);
-
-  return { success: true };
-}
-
-/**
- * Promote a potential (user_signal) to a lead.
- */
-export async function promotePotential(potentialId: string) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error('Unauthorized');
-
-  // Fetch potential with dossier
-  const { data: potential, error: fetchError } = await supabase
-    .from('user_signals')
-    .select('*')
-    .eq('id', potentialId)
-    .eq('user_id', user.id)
-    .single();
-  if (fetchError || !potential) throw new Error('Potential not found');
-  if (!potential.ai_dossier || Object.keys(potential.ai_dossier).length === 0) {
-    throw new Error('Dossier not generated yet');
-  }
-
-  const dossier = potential.ai_dossier as any;
-
-  // Create lead opportunity
-  const { data: lead, error: leadError } = await supabase
-    .from('leads')
-    .insert({
-      user_id: user.id,
-      company_name: potential.company_name,
-      hotness_score: dossier.hotness_score ?? potential.match_score ?? 0,
-      strategic_analysis: dossier.strategic_analysis ?? null,
-      trigger_alignment: dossier.trigger_alignment ?? null,
-      strategic_hurdles: dossier.hurdles ?? null,
-      business_justification: dossier.business_justification ?? null,
-      deal_timeline: dossier.estimated_sales_cycle ?? null,
-      status: 'new',
-      ai_coach_state: {
-        ai_dossier: dossier
-      }, // Ready for Iris state engine tracking
-    })
-    .select()
-    .single();
-
-  if (leadError) throw new Error(`Lead promotion failed: ${leadError.message}`);
-
-  // FIX: Replace manual database insert with Iris's structural playbook processor
-  await triggerStageEntry({
-    leadId: lead.id,
-    stage: 'new'
-  });
-
-  // Mark potential as promoted
-  await supabase
-    .from('user_signals')
-    .update({ status: 'promoted' })
-    .eq('id', potential.id);
-
-  revalidatePath('/potentials');
-  revalidatePath('/leads');
-  return { leadId: lead.id };
-}
-
-/**
- * Dismiss a potential (mark as dismissed)
- */
-export async function dismissPotential(potentialId: string) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error('Unauthorized');
-
-  const { error } = await supabase
-    .from('user_signals')
-    .update({ status: 'dismissed' })
-    .eq('id', potentialId)
-    .eq('user_id', user.id);
-
-  if (error) throw new Error('Dismiss failed');
-  revalidatePath('/potentials');
-  return { success: true };
-}
-
-/**
- * Create a manual potential directly in user_signals, generate dossier, and redirect.
- */
-export async function createManualPotential(formData: {
-  title: string;
-  company_name?: string;
-  description?: string;
-  link?: string;
-  sectors: string[];
-  event_category: string;
-  country: string;
-}) {
-  const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) throw new Error('Unauthorized');
-
-  // Fetch profile for dossier generation
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('full_name, description, offerings, past_projects, ideal_customer_profile')
-    .eq('id', user.id)
-    .single();
-  if (profileError || !profile) throw new Error('Profile not found');
-
-  // Generate dossier using a raw-like object
-  const rawLike = {
-    company_name: formData.company_name,
-    title: formData.title,
-    description: formData.description,
-    event_category: formData.event_category,
-  };
-  const dossier = await generateDossierForRawSignal(rawLike, profile);
-
-  // Insert into user_signals with source='manual'
-  const { data: newPotential, error: insertError } = await supabase
-    .from('user_signals')
-    .insert({
-      user_id: user.id,
-      title: formData.title,
-      company_name: formData.company_name || null,
-      description: formData.description || null,
-      sectors: formData.sectors,
-      event_category: formData.event_category,
-      country: formData.country || null,
-      link: formData.link || null,
-      source: 'manual',
-      status: 'new',
-      ai_dossier: dossier,
-      match_score: dossier.hotness_score,
-    })
-    .select()
-    .single();
-
-  if (insertError) throw new Error(`Failed to create manual potential: ${insertError.message}`);
-
-  redirect(`/potentials/${newPotential.id}`);
 }

@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      actions: {
+        Row: {
+          body: string | null
+          channel: Database["public"]["Enums"]["action_channel"]
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          iris_tip: string | null
+          lead_id: string
+          metadata: Json
+          required: boolean
+          stage: Database["public"]["Enums"]["lead_status"]
+          status: Database["public"]["Enums"]["action_status"]
+          title: string
+          type: Database["public"]["Enums"]["action_type"]
+          updated_at: string
+        }
+        Insert: {
+          body?: string | null
+          channel: Database["public"]["Enums"]["action_channel"]
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          iris_tip?: string | null
+          lead_id: string
+          metadata?: Json
+          required?: boolean
+          stage: Database["public"]["Enums"]["lead_status"]
+          status?: Database["public"]["Enums"]["action_status"]
+          title: string
+          type: Database["public"]["Enums"]["action_type"]
+          updated_at?: string
+        }
+        Update: {
+          body?: string | null
+          channel?: Database["public"]["Enums"]["action_channel"]
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          iris_tip?: string | null
+          lead_id?: string
+          metadata?: Json
+          required?: boolean
+          stage?: Database["public"]["Enums"]["lead_status"]
+          status?: Database["public"]["Enums"]["action_status"]
+          title?: string
+          type?: Database["public"]["Enums"]["action_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "actions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_coach_logs: {
         Row: {
           created_at: string
@@ -51,60 +123,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ai_coach_logs_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      communications: {
-        Row: {
-          body: string | null
-          channel: Database["public"]["Enums"]["communication_channel"]
-          contact_id: string | null
-          created_at: string
-          direction: Database["public"]["Enums"]["communication_direction"]
-          id: string
-          lead_id: string
-          occurred_at: string
-          subject: string | null
-          summary: string | null
-        }
-        Insert: {
-          body?: string | null
-          channel: Database["public"]["Enums"]["communication_channel"]
-          contact_id?: string | null
-          created_at?: string
-          direction: Database["public"]["Enums"]["communication_direction"]
-          id?: string
-          lead_id: string
-          occurred_at?: string
-          subject?: string | null
-          summary?: string | null
-        }
-        Update: {
-          body?: string | null
-          channel?: Database["public"]["Enums"]["communication_channel"]
-          contact_id?: string | null
-          created_at?: string
-          direction?: Database["public"]["Enums"]["communication_direction"]
-          id?: string
-          lead_id?: string
-          occurred_at?: string
-          subject?: string | null
-          summary?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "communications_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "communications_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
@@ -230,10 +248,12 @@ export type Database = {
           ai_coach_state: Json
           business_justification: string | null
           company_name: string | null
+          country: string | null
           created_at: string
           deal_timeline: string | null
           hotness_score: number | null
           id: string
+          raw_signal_id: string | null
           status: string
           strategic_analysis: string | null
           strategic_hurdles: string | null
@@ -245,10 +265,12 @@ export type Database = {
           ai_coach_state?: Json
           business_justification?: string | null
           company_name?: string | null
+          country?: string | null
           created_at?: string
           deal_timeline?: string | null
           hotness_score?: number | null
           id?: string
+          raw_signal_id?: string | null
           status?: string
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
@@ -260,10 +282,12 @@ export type Database = {
           ai_coach_state?: Json
           business_justification?: string | null
           company_name?: string | null
+          country?: string | null
           created_at?: string
           deal_timeline?: string | null
           hotness_score?: number | null
           id?: string
+          raw_signal_id?: string | null
           status?: string
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
@@ -271,7 +295,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_raw_signal_id_fkey"
+            columns: ["raw_signal_id"]
+            isOneToOne: false
+            referencedRelation: "raw_signals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -395,145 +427,6 @@ export type Database = {
           },
         ]
       }
-      tasks: {
-        Row: {
-          auto_prompt: boolean
-          channel: Database["public"]["Enums"]["task_channel"]
-          completed_at: string | null
-          created_at: string
-          due_date: string
-          feedback_answers: Json | null
-          feedback_saves_to: string | null
-          feedback_submitted: boolean
-          id: string
-          iris_tip: string | null
-          lead_id: string
-          required: boolean
-          stage: string | null
-          status: Database["public"]["Enums"]["task_status"]
-          task_config_id: string | null
-          title: string
-          updated_at: string
-          user_approved: boolean
-        }
-        Insert: {
-          auto_prompt?: boolean
-          channel: Database["public"]["Enums"]["task_channel"]
-          completed_at?: string | null
-          created_at?: string
-          due_date: string
-          feedback_answers?: Json | null
-          feedback_saves_to?: string | null
-          feedback_submitted?: boolean
-          id?: string
-          iris_tip?: string | null
-          lead_id: string
-          required?: boolean
-          stage?: string | null
-          status?: Database["public"]["Enums"]["task_status"]
-          task_config_id?: string | null
-          title: string
-          updated_at?: string
-          user_approved?: boolean
-        }
-        Update: {
-          auto_prompt?: boolean
-          channel?: Database["public"]["Enums"]["task_channel"]
-          completed_at?: string | null
-          created_at?: string
-          due_date?: string
-          feedback_answers?: Json | null
-          feedback_saves_to?: string | null
-          feedback_submitted?: boolean
-          id?: string
-          iris_tip?: string | null
-          lead_id?: string
-          required?: boolean
-          stage?: string | null
-          status?: Database["public"]["Enums"]["task_status"]
-          task_config_id?: string | null
-          title?: string
-          updated_at?: string
-          user_approved?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tasks_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_signals: {
-        Row: {
-          ai_dossier: Json | null
-          company_name: string | null
-          country: string | null
-          created_at: string | null
-          deal_timeline: string | null
-          description: string | null
-          event_category: string | null
-          hotness_score: number | null
-          id: string
-          link: string | null
-          match_score: number | null
-          raw_signal_id: string | null
-          sectors: string[] | null
-          source: string | null
-          status: string | null
-          title: string | null
-          user_id: string
-        }
-        Insert: {
-          ai_dossier?: Json | null
-          company_name?: string | null
-          country?: string | null
-          created_at?: string | null
-          deal_timeline?: string | null
-          description?: string | null
-          event_category?: string | null
-          hotness_score?: number | null
-          id?: string
-          link?: string | null
-          match_score?: number | null
-          raw_signal_id?: string | null
-          sectors?: string[] | null
-          source?: string | null
-          status?: string | null
-          title?: string | null
-          user_id: string
-        }
-        Update: {
-          ai_dossier?: Json | null
-          company_name?: string | null
-          country?: string | null
-          created_at?: string | null
-          deal_timeline?: string | null
-          description?: string | null
-          event_category?: string | null
-          hotness_score?: number | null
-          id?: string
-          link?: string | null
-          match_score?: number | null
-          raw_signal_id?: string | null
-          sectors?: string[] | null
-          source?: string | null
-          status?: string | null
-          title?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_signals_raw_signal_id_fkey"
-            columns: ["raw_signal_id"]
-            isOneToOne: false
-            referencedRelation: "raw_signals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -543,6 +436,17 @@ export type Database = {
       jsonb_merge: { Args: { base: Json; patch: Json }; Returns: Json }
     }
     Enums: {
+      action_channel:
+        | "email"
+        | "call"
+        | "meeting"
+        | "linkedin"
+        | "internal"
+        | "iris"
+        | "auto"
+        | "other"
+      action_status: "pending" | "completed" | "skipped"
+      action_type: "task" | "communication" | "note" | "notification"
       coach_log_type:
         | "entry"
         | "checkback"
@@ -570,11 +474,21 @@ export type Database = {
         | "negotiation"
         | "won"
         | "lost"
+        | "signal"
+        | "potential"
+        | "discovery"
+        | "engaged"
+        | "solution_fit"
+        | "close"
+        | "post_close"
       signal_category:
         | "Company News"
         | "Industry Trend"
         | "Events/Meetups"
         | "Regulatory/Government"
+        | "Request for Proposal"
+        | "Expression of Interest"
+        | "Call for Tenders"
       task_channel:
         | "email"
         | "linkedin"
@@ -710,6 +624,18 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      action_channel: [
+        "email",
+        "call",
+        "meeting",
+        "linkedin",
+        "internal",
+        "iris",
+        "auto",
+        "other",
+      ],
+      action_status: ["pending", "completed", "skipped"],
+      action_type: ["task", "communication", "note", "notification"],
       coach_log_type: [
         "entry",
         "checkback",
@@ -739,12 +665,22 @@ export const Constants = {
         "negotiation",
         "won",
         "lost",
+        "signal",
+        "potential",
+        "discovery",
+        "engaged",
+        "solution_fit",
+        "close",
+        "post_close",
       ],
       signal_category: [
         "Company News",
         "Industry Trend",
         "Events/Meetups",
         "Regulatory/Government",
+        "Request for Proposal",
+        "Expression of Interest",
+        "Call for Tenders",
       ],
       task_channel: [
         "email",

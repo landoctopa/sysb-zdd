@@ -20,45 +20,16 @@ export async function GET(req: Request) {
   const offset = parseInt(searchParams.get('offset') || '0', 10);
   const limit = parseInt(searchParams.get('limit') || '20', 10);
 
+  // 1. Authenticate user context to enforce secure tenant boundaries
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
-  if (authError || !user)
+  if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  // ----- VIEWED VIEW: user_signals (new or dismissed) – kept for backward compatibility -----
-  if (view === 'viewed') {
-    let countQuery = supabase
-      .from('user_signals')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .in('status', ['new', 'dismissed']);
-
-    if (searchQuery) countQuery = countQuery.ilike('title', `%${searchQuery}%`);
-    const { count: total, error: countError } = await countQuery;
-    if (countError)
-      return NextResponse.json({ error: countError.message }, { status: 500 });
-
-    let dataQuery = supabase
-      .from('user_signals')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('status', ['new', 'dismissed'])
-      .order('created_at', { ascending: false });
-    if (searchQuery) dataQuery = dataQuery.ilike('title', `%${searchQuery}%`);
-    const { data: signals, error: dataError } = await dataQuery.range(offset, offset + limit - 1);
-    if (dataError)
-      return NextResponse.json({ error: dataError.message }, { status: 500 });
-
-    return NextResponse.json({
-      signals: signals || [],
-      total: total || 0,
-      hasMore: offset + limit < (total || 0),
-    });
   }
 
-  // ----- FIREHOSE VIEW (global, no personalization, no exclusion of touched) -----
+  // ----- FIREHOSE VIEW (Global search feed, ignores user preferences) -----
   if (view === 'search') {
     let query = supabase
       .from('raw_signals')
@@ -81,8 +52,9 @@ export async function GET(req: Request) {
     });
   }
 
-  // ----- INBOX VIEW (profile-matched raw signals, untouched) -----
-  // Fetch user's profile preferences (used as fallback if no explicit filters are provided)
+  // ----- INBOX VIEW (Profile-matched raw signals, un-triaged) -----
+  
+  // A. Fetch the user's explicit profile matching rules
   const { data: profile } = await supabase
     .from('profiles')
     .select('target_sectors, target_countries, target_event_categories')
@@ -93,39 +65,61 @@ export async function GET(req: Request) {
   const profileCountries = profile?.target_countries || [];
   const profileEventCategories = profile?.target_event_categories || [];
 
-  // Get all raw_signal_ids already touched by this user (to exclude them)
-  const { data: touched } = await supabase
-    .from('user_signals')
-    .select('raw_signal_id')
-    .eq('user_id', user.id);
-  const touchedIds = (touched || []).map((t) => t.raw_signal_id).filter(Boolean);
+  // B. UNIFIED EXCLUSION ENGINE
+  // Run concurrent requests to pull IDs that shouldn't appear in the feed
+  const [promotedResponse, dismissedResponse] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('raw_signal_id')
+      .eq('user_id', user.id)
+      .not('raw_signal_id', 'is', null), // Excludes manual leads
+    supabase
+      .from('dismissed_signals')
+      .select('raw_signal_id')
+      .eq('user_id', user.id),
+  ]);
 
+  // Combine both datasets into a single array of hidden IDs
+  const promotedIds = (promotedResponse.data || []).map((l) => l.raw_signal_id);
+  const dismissedIds = (dismissedResponse.data || []).map((d) => d.raw_signal_id);
+  
+  const touchedIds = [...promotedIds, ...dismissedIds].filter(Boolean);
+
+  // C. BUILD PRIMARY DATA QUERY
   let matchQuery = supabase
     .from('raw_signals')
     .select('*', { count: 'exact' })
     .eq('status', 'analysed');
 
-  // Exclude touched signals
-  if (touchedIds.length) matchQuery = matchQuery.not('id', 'in', `(${touchedIds.join(',')})`);
+  // Inject our exclusion parameters only if elements exist to prevent Postgres parsing drops
+  if (touchedIds.length > 0) {
+    matchQuery = matchQuery.not('id', 'in', `(${touchedIds.join(',')})`);
+  }
 
-  // Apply filters – use explicit query params if provided, otherwise fall back to profile preferences
-  // For sectors: use explicit sectors if given, else use profile sectors
+  // D. APPLY FILTER MATRIX (Fallback to profile parameters if UI values are empty)
   const effectiveSectors = sectors.length ? sectors : profileSectors;
-  if (effectiveSectors.length) matchQuery = matchQuery.overlaps('sectors', effectiveSectors);
+  if (effectiveSectors.length) {
+    matchQuery = matchQuery.overlaps('sectors', effectiveSectors);
+  }
 
-  // For countries: always use profile countries (not exposed in UI yet, but kept)
-  if (profileCountries.length) matchQuery = matchQuery.in('country', profileCountries);
+  if (profileCountries.length) {
+    matchQuery = matchQuery.in('country', profileCountries);
+  }
 
-  // For event categories: use explicit if given, else profile
   const effectiveEventCategories = eventCategories.length ? eventCategories : profileEventCategories;
-  if (effectiveEventCategories.length) matchQuery = matchQuery.in('event_category', effectiveEventCategories);
+  if (effectiveEventCategories.length) {
+    matchQuery = matchQuery.in('event_category', effectiveEventCategories);
+  }
 
-  // Signal type filter from client
-  if (signalTypes.length) matchQuery = matchQuery.in('signal_type', signalTypes);
+  if (signalTypes.length) {
+    matchQuery = matchQuery.in('signal_type', signalTypes);
+  }
 
-  // Global search
-  if (searchQuery) matchQuery = matchQuery.ilike('title', `%${searchQuery}%`);
+  if (searchQuery) {
+    matchQuery = matchQuery.ilike('title', `%${searchQuery}%`);
+  }
 
+  // E. EXECUTE RANGE CONSTRAINTS
   const { data: matches, count: matchTotal } = await matchQuery
     .order('published_at', { ascending: false })
     .range(offset, offset + limit - 1);
