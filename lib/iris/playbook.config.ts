@@ -1,360 +1,105 @@
 /**
  * /lib/iris/playbook.config.ts
  */
-
 import type { IrisStageConfig } from './types';
 
 export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
-  new: {
-    goal: 'Qualify lead and establish verified active contact',
+  discovery: {
+    goal: 'Learn about the business, find the right people to connect with, and see if there is a real fit for your services.',
     entry_message: {
       template: 'entry_briefing',
       context_fields: ['lead.company_name', 'lead.hotness_score', 'lead.trigger_alignment'],
     },
     tasks: [
       {
-        id: 'research_contacts',
-        title: 'Identify key decision makers at {{lead.company_name}}',
+        id: 'verify_company_details',
+        title: 'Check company details for {{lead.company_name}}',
         channel: 'internal',
         due_business_days: 1,
         required: true,
-        iris_tip: 'Check LinkedIn, company website, or use corporate data files. Target specific executive tracks.',
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'decision_maker_found', text: 'Did you identify at least one decision maker?', options: ['Yes', 'No'] },
-            { id: 'decision_maker_name', text: 'Name and title of the main contact?', type: 'text' },
-          ],
-          saves_to: 'qualification.decision_maker',
-        },
-        unlocks_stage_advance: true,
+        iris_tip: 'Take a quick look at their website. If you use tools like Apollo or Lusha, you can pull details automatically to fill in the blanks.',
+        completion_gate: {
+          condition: 'task.metadata.verified_domain !== undefined',
+          blocked_message: 'Confirm the company web address or details to lock in your initial research.',
+        }
       },
       {
-        id: 'initial_outreach',
-        title: 'Send initial outreach to {{lead.company_name}}',
+        id: 'find_key_people',
+        title: 'Find the right people to reach out to',
+        channel: 'internal',
+        due_business_days: 1,
+        required: true,
+        depends_on: ['verify_company_details'],
+        iris_tip: 'Look for individuals who handle operations, marketing, or technology depending on what you offer.',
+        completion_gate: {
+          condition: 'task.metadata.total_mapped >= 2',
+          blocked_message: 'It is a good idea to find at least 2 people to talk to. This gives you backup options if one contact goes quiet or leaves.',
+        }
+      },
+      {
+        id: 'pre_outreach_prep',
+        title: 'Quick review before first contact',
+        channel: 'internal',
+        due_business_days: 1,
+        required: true,
+        depends_on: ['find_key_people'],
+        iris_tip: 'Make sure you have a clear idea of what this company does and what parts of their business you can help improve based on their recent updates.',
+        completion_gate: {
+          condition: 'task.metadata.user_preflight_confirmed === true',
+          blocked_message: 'Confirm you have done a quick review of your notes to unlock your custom outreach messages.',
+        }
+      },
+      {
+        id: 'send_first_outreach',
+        title: 'Send your initial outreach message',
         channel: 'auto',
         due_business_days: 2,
         required: true,
-        depends_on: ['research_contacts'],
-        iris_tip: 'Reference the signal that triggered this lead. Keep it short and value-focused.',
-        channel_logic: {
-          default: 'email',
-          override_if: [
-            { condition: 'lead.contacts.some(c => c.linkedin_url !== null)', channel: 'linkedin', note: 'Try LinkedIn first' },
-          ],
-        },
+        depends_on: ['pre_outreach_prep'],
+        iris_tip: 'Use Iris to draft a quick, helpful message. Keep it short, point directly to their recent news, and focus entirely on how you can help.',
         ai_actions: ['draft_outreach_email', 'draft_linkedin_message'],
         completion_gate: {
-          condition: 'task.feedback_submitted === true',
-          blocked_message: 'Please tell Iris how the outreach was received before marking complete.',
-        },
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'outcome', text: 'What was the outcome?', options: ['Meeting booked', 'Positive reply', 'No reply', 'Negative reply'] },
-            { id: 'channel_used', text: 'Which channel did you use?', options: ['Email', 'LinkedIn', 'Phone'] },
-          ],
-          saves_to: 'outreach.initial',
-        },
-        unlocks_stage_advance: true,
+          condition: 'task.metadata.message_sent === true',
+          blocked_message: 'Mark this task complete once you have copied and sent out your initial message line.',
+        }
       },
+      {
+        id: 'log_discovery_call',
+        title: 'Have your discovery chat and check for deal fit',
+        channel: 'meeting',
+        due_business_days: 3,
+        required: true,
+        depends_on: ['send_first_outreach'],
+        iris_tip: 'Listen to their challenges. Ask about their target goals, who makes final choices, when they want to start, and what kind of budget is available.',
+        completion_gate: {
+          condition: 'task.metadata.score !== undefined && task.metadata.financial_impact !== undefined',
+          blocked_message: 'Log your conversation details and note down the financial impact of their problem to save your work.',
+        }
+      }
     ],
     checkback_rules: [
       {
-        id: 'new_no_activity_3d',
+        id: 'discovery_stalled_3d',
         trigger_after_business_days: 3,
         condition: 'no_task_activity',
         iris_message_template: 'gentle_nudge',
-        suggested_actions: ['draft_outreach_email'],
-      },
-      {
-        id: 'new_no_activity_7d',
-        trigger_after_business_days: 7,
-        condition: 'no_task_activity',
-        iris_message_template: 'disqualify_or_dormant',
-        suggested_actions: [],
-      },
+        suggested_actions: []
+      }
     ],
     exit_criteria: [
-      { condition: 'coach_state.outreach.initial.outcome === "Meeting booked" || coach_state.outreach.initial.outcome === "Positive reply"', label: 'Active outreach response confirmed' },
-      { condition: 'lead.contacts.length > 0', label: 'Minimum stakeholder mapped' },
+      { condition: 'lead.contacts.length >= 2', label: 'At least 2 contacts listed' },
+      { condition: 'task.metadata.score >= 8', label: 'Good overall project fit verified' }
     ],
-    exit_blocked_message: 'Establish clear active engagement or log a valid contact thread before advancing to Contacted.',
+    exit_blocked_message: 'Finish up your active research and log your conversation notes before moving this project to the next stage.',
   },
 
-  contacted: {
-    goal: 'Establish engagement and secure a meeting',
-    entry_message: {
-      template: 'contacted_briefing',
-      context_fields: ['lead.company_name', 'coach_state.outreach.initial.outcome'],
-    },
-    tasks: [
-      {
-        id: 'follow_up',
-        title: 'Follow up with {{lead.company_name}}',
-        channel: 'auto',
-        due_business_days: 3,
-        required: false,
-        depends_on: [],
-        iris_tip: 'If no reply after 3 days, try a different channel. If positive reply, propose a meeting.',
-        channel_logic: {
-          default: 'email',
-          override_if: [
-            { condition: 'coach_state.outreach.initial.outcome === "No reply"', channel: 'linkedin', note: 'Switch to LinkedIn' },
-            { condition: 'coach_state.outreach.initial.outcome === "Positive reply"', channel: 'meeting', note: 'Suggest a meeting' },
-          ],
-        },
-        ai_actions: ['draft_followup_email', 'draft_linkedin_message', 'draft_meeting_request'],
-        completion_gate: {
-          condition: 'task.feedback_submitted === true',
-          blocked_message: 'Log the outcome of this follow-up before completing.',
-        },
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'outcome', text: 'What happened?', options: ['Meeting booked', 'Still no reply', 'Positive reply but no meeting', 'Negative reply', 'Unsubscribed'] },
-            { id: 'meeting_date', text: 'If meeting booked, what date?', type: 'text' },
-          ],
-          saves_to: 'engagement.follow_up',
-        },
-        unlocks_stage_advance: true,
-      },
-      {
-        id: 'send_case_study',
-        title: 'Share relevant case study or content',
-        channel: 'email',
-        due_business_days: 5,
-        required: false,
-        depends_on: [],
-        iris_tip: 'Choose a case study similar to {{lead.company_name}} to build credibility.',
-        ai_actions: ['suggest_case_study'],
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'sent', text: 'Did you send it?', options: ['Yes', 'No'] },
-            { id: 'reaction', text: "What was their reaction? (if any)", type: 'text' },
-          ],
-          saves_to: 'engagement.case_study',
-        },
-      },
-    ],
-    checkback_rules: [
-      {
-        id: 'contacted_no_reply_3d',
-        trigger_after_business_days: 3,
-        condition: "coach_state.engagement.follow_up.outcome === 'Still no reply'",
-        iris_message_template: 'no_reply_followup_1',
-        suggested_actions: ['draft_followup_email', 'draft_linkedin_message'],
-      },
-      {
-        id: 'contacted_no_reply_7d',
-        trigger_after_business_days: 7,
-        condition: "coach_state.engagement.follow_up.outcome === 'Still no reply'",
-        iris_message_template: 'no_reply_followup_2',
-        suggested_actions: ['draft_phone_script'],
-      },
-      {
-        id: 'contacted_meeting_booked',
-        trigger_after_business_days: 1,
-        condition: "coach_state.engagement.follow_up.outcome === 'Meeting booked'",
-        iris_message_template: 'meeting_prep',
-        suggested_actions: ['suggest_meeting_agenda'],
-      },
-    ],
-    exit_criteria: [
-      { condition: "coach_state.engagement.follow_up.outcome === 'Meeting booked'", label: 'Meeting scheduled' },
-    ],
-    exit_blocked_message: 'You need to book a meeting with the lead before moving to Proposal.',
-  },
-
-  proposal: {
-    goal: 'Deliver a tailored proposal/SOW',
-    entry_message: {
-      template: 'proposal_briefing',
-      context_fields: ['lead.company_name', 'lead.strategic_hurdles', 'lead.deal_timeline'],
-    },
-    tasks: [
-      {
-        id: 'gather_requirements',
-        title: 'Gather specific requirements from {{lead.company_name}}',
-        channel: 'meeting',
-        due_business_days: 2,
-        required: true,
-        iris_tip: "Ask about their timeline, budget, must-have features, and decision process.",
-        ai_actions: ['suggest_meeting_agenda'],
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'budget_range', text: "What's their budget range?", type: 'text' },
-            { id: 'must_have_features', text: 'Key requirements they mentioned?', type: 'text' },
-            { id: 'timeline', text: 'When do they need this solved?', type: 'text' },
-          ],
-          saves_to: 'proposal.requirements',
-        },
-        unlocks_stage_advance: true,
-      },
-      {
-        id: 'draft_proposal',
-        title: 'Draft proposal for {{lead.company_name}}',
-        channel: 'internal',
-        due_business_days: 3,
-        required: true,
-        depends_on: ['gather_requirements'],
-        iris_tip: 'Use Iris to generate a draft, then customize.',
-        ai_actions: ['generate_proposal_draft'],
-        requires_user_approval: true,
-        approval_message: 'Please review the generated proposal draft. Approve it to mark this task complete.',
-        completion_gate: {
-          condition: 'task.user_approved === true',
-          blocked_message: 'You must approve the proposal draft before completing.',
-        },
-        unlocks_stage_advance: true,
-      },
-      {
-        id: 'send_proposal',
-        title: 'Send proposal to {{lead.company_name}}',
-        channel: 'email',
-        due_business_days: 1,
-        required: true,
-        depends_on: ['draft_proposal'],
-        iris_tip: 'Send as PDF. Include a clear next step.',
-        ai_actions: ['draft_contract_cover_email'],
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'sent_date', text: 'Date sent?', type: 'text' },
-            { id: 'expected_response', text: 'When do they expect to respond?', type: 'text' },
-          ],
-          saves_to: 'proposal.sent',
-        },
-      },
-    ],
-    checkback_rules: [
-      {
-        id: 'proposal_no_response_3d',
-        trigger_after_business_days: 3,
-        condition: "coach_state.proposal.sent.sent_date !== undefined",
-        iris_message_template: 'proposal_followup',
-        suggested_actions: ['draft_followup_email'],
-      },
-    ],
-    exit_criteria: [
-      { condition: "coach_state.proposal.sent.sent_date !== undefined", label: 'Proposal sent' },
-      { condition: "coach_state.proposal.requirements.budget_range !== undefined", label: 'Requirements gathered' },
-    ],
-    exit_blocked_message: 'Send the proposal and confirm requirements before moving to Negotiation.',
-  },
-
-  negotiation: {
-    goal: 'Agree on terms, address objections, close',
-    entry_message: {
-      template: 'negotiation_briefing',
-      context_fields: ['lead.company_name', 'lead.strategic_hurdles'],
-    },
-    tasks: [
-      {
-        id: 'handle_objections',
-        title: 'Address objections from {{lead.company_name}}',
-        channel: 'internal',
-        due_business_days: 2,
-        required: true,
-        iris_tip: 'Log objections here, then generate a playbook.',
-        ai_actions: ['generate_objection_playbook'],
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'objections', text: 'What objections did they raise? (comma separated)', type: 'text' },
-            { id: 'resolved', text: 'Were they resolved?', options: ['Yes', 'Partially', 'No'] },
-          ],
-          saves_to: 'negotiation.objections',
-        },
-        unlocks_stage_advance: true,
-      },
-      {
-        id: 'finalize_contract',
-        title: 'Finalize contract terms',
-        channel: 'internal',
-        due_business_days: 3,
-        required: true,
-        depends_on: ['handle_objections'],
-        iris_tip: 'Ensure price, scope, timeline, and payment terms are agreed.',
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'terms_agreed', text: 'Are all terms agreed?', options: ['Yes', 'No'] },
-            { id: 'final_price', text: 'Final price?', type: 'text' },
-          ],
-          saves_to: 'negotiation.contract',
-        },
-      },
-    ],
-    checkback_rules: [],
-    exit_criteria: [
-      { condition: "coach_state.negotiation.objections.resolved === 'Yes'", label: 'Objections resolved' },
-      { condition: "coach_state.negotiation.contract.terms_agreed === 'Yes'", label: 'Contract terms agreed' },
-    ],
-    exit_blocked_message: 'Resolve all objections and finalize contract terms before moving to Won.',
-  },
-
-  won: {
-    goal: 'Generate internal summary and handoff',
-    entry_message: {
-      template: 'won_briefing',
-      context_fields: ['lead.company_name'],
-    },
-    tasks: [
-      {
-        id: 'generate_deal_summary',
-        title: 'Create deal summary for {{lead.company_name}}',
-        channel: 'internal',
-        due_business_days: 1,
-        required: true,
-        iris_tip: 'Iris can draft this for you.',
-        ai_actions: ['generate_deal_summary'],
-        requires_user_approval: true,
-        approval_message: 'Review the deal summary and approve.',
-        completion_gate: {
-          condition: 'task.user_approved === true',
-          blocked_message: 'Approve the deal summary to complete.',
-        },
-      },
-      {
-        id: 'onboarding_checklist',
-        title: 'Create onboarding checklist',
-        channel: 'internal',
-        due_business_days: 2,
-        required: false,
-        ai_actions: ['generate_onboarding_checklist'],
-      },
-    ],
-    checkback_rules: [],
-    exit_criteria: [],
-  },
-
-  lost: {
-    goal: 'Log reason for loss and archive',
-    entry_message: {
-      template: 'lost_briefing',
-      context_fields: ['lead.company_name'],
-    },
-    tasks: [
-      {
-        id: 'log_loss_reason',
-        title: 'Why did {{lead.company_name}} not close?',
-        channel: 'internal',
-        due_business_days: 1,
-        required: true,
-        feedback_prompt: {
-          trigger: 'on_complete',
-          questions: [
-            { id: 'reason', text: 'Primary reason for loss', options: ['Price', 'Timing', 'Competitor', 'No need', 'Lost contact', 'Other'] },
-            { id: 'notes', text: 'Any additional notes?', type: 'text' },
-          ],
-          saves_to: 'loss_reason',
-        },
-      },
-    ],
-    checkback_rules: [],
-    exit_criteria: [],
-  },
+  // Stubs for later stages to keep the compiler happy
+  engaged: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  solution_fit: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  proposal: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  negotiation: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  close: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  post_close: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  won: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
+  lost: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] }
 };
