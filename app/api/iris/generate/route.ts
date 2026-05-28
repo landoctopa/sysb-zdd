@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { IrisOrchestrator } from '@/lib/iris/orchestrator';
-import { saveIrisDraft } from '@/app/actions/iris'; // Import our new layout persistence action
+import { saveIrisDraft } from '@/app/actions/iris'; // Keeps your layout persistence intact!
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,13 +12,13 @@ export async function POST(req: NextRequest) {
     if (body.action_key && body.lead_id) {
       const supabase = await createClient();
 
-      // Auth check
+      // Simple security check
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
-      // Fetch lead with relations
+      // Fetch lead details along with its contacts
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*, contacts(*)')
@@ -27,34 +27,34 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (leadError || !lead) {
-        return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+        return NextResponse.json({ error: 'Lead data profile not found' }, { status: 404 });
       }
 
-      // FIX: Fetch existing database tasks to populate the updated orchestrator track
-      const { data: tasks } = await supabase
-        .from('tasks')
+      // 🛠️ FIX: Changed from 'tasks' to pull directly from your unified actions ledger
+      const { data: actions } = await supabase
+        .from('actions')
         .select('*')
         .eq('lead_id', body.lead_id);
 
-      // Fetch user profile (for product_offering, offerings, etc.)
+      // Fetch user business profile fields
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
-      // Instantiated with live task arrays to unlock multi-level depends_on rules
+      // Instantiated safely using the true database action history array
       const orchestrator = new IrisOrchestrator(
         lead,
         (lead.ai_coach_state as Record<string, any>) || {},
         profile || undefined,
-        tasks || []
+        actions || [] // Fed directly into the checklist calculator
       );
 
       const result = await orchestrator.runAiAction(body.action_key);
       
       if (result) {
-        // FIX: Persistent database tracking for AI assets
+        // Keeps your template saver active
         await saveIrisDraft({
           leadId: body.lead_id,
           actionKey: body.action_key,
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return NextResponse.json(result ?? { error: 'No result' });
+      return NextResponse.json(result ?? { error: 'No response returned from engine' });
     }
 
     // ── Pattern 2: raw payload from orchestrator (server-side) ────────────────
@@ -75,17 +75,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request layout payload' }, { status: 400 });
   } catch (err) {
     console.error('[api/iris/generate]', err);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server processing error' },
       { status: 500 }
     );
   }
 }
 
-// ─── AI call (DeepSeek only) ─────────────────────────────────────────────────
+// ─── AI Direct Connection Engine (DeepSeek) ──────────────────────────────────
 async function callDeepSeek({
   systemPrompt,
   userMessage,
@@ -97,8 +97,8 @@ async function callDeepSeek({
 }): Promise<any> {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    console.error('Missing DEEPSEEK_API_KEY environment variable');
-    throw new Error('AI service not configured');
+    console.error('Missing DEEPSEEK_API_KEY environment variable setup');
+    throw new Error('AI copy services are currently not configured');
   }
 
   const res = await fetch('https://api.deepseek.com/chat/completions', {
@@ -120,8 +120,8 @@ async function callDeepSeek({
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error(`DeepSeek error ${res.status}: ${errorText}`);
-    throw new Error(`DeepSeek API error: ${res.status}`);
+    console.error(`DeepSeek proxy endpoint returned error ${res.status}: ${errorText}`);
+    throw new Error(`AI service encountered an execution block: ${res.status}`);
   }
 
   const data = await res.json();
@@ -129,7 +129,7 @@ async function callDeepSeek({
   return parseAiOutput(text);
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Text Prompt Compilation Helpers ─────────────────────────────────────────
 function buildUserMessage(
   context: Record<string, unknown>,
   outputFormat: string | Record<string, string>
@@ -141,12 +141,12 @@ function buildUserMessage(
 
   let formatStr: string;
   if (typeof outputFormat === 'string') {
-    formatStr = `Return as: ${outputFormat}. Return ONLY valid JSON.`;
+    formatStr = `Return as: ${outputFormat}. Return ONLY valid JSON records.`;
   } else {
-    formatStr = `Return a JSON object with these exact keys: ${JSON.stringify(outputFormat)}. Return ONLY the JSON, no markdown fences or extra text.`;
+    formatStr = `Return a JSON object with these exact keys: ${JSON.stringify(outputFormat)}. Return ONLY the plain JSON code, do not add markdown wrapping ticks or intro commentary.`;
   }
 
-  return `Context:\n${contextStr}\n\n${formatStr}`;
+  return `Context Details:\n${contextStr}\n\nFormatting Guidelines:\n${formatStr}`;
 }
 
 function parseAiOutput(text: string): any {
