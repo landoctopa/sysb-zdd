@@ -1,5 +1,7 @@
 'use client';
 
+// app/leads/[id]/LeadWorkbenchClient.tsx
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';

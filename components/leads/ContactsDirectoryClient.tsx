@@ -1,4 +1,5 @@
 'use client';
+// components/leads/ContactsDirectoryClient.tsx
 
 import React, { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,13 +11,10 @@ import {
   UserPlus, 
   Mail, 
   Phone, 
-  Heart, 
   Smile, 
   XCircle, 
-  Check, 
   Loader2, 
-  ExternalLink,
-  MessageSquare
+  ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Database } from '@/database.types';
@@ -33,7 +31,6 @@ interface ClientProps {
 export default function ContactsDirectoryClient({ leadId, currentStage, initialContacts }: ClientProps) {
   const router = useRouter();
   const [contacts, setContacts] = useState<Contact[]>(initialContacts);
-  const [showAddForm, setShowAddForm] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // New Contact local form state definitions
@@ -44,6 +41,9 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
   const [newLinkedin, setNewLinkedin] = useState('');
   const [likes, setLikes] = useState('');
   const [dislikes, setDislikes] = useState('');
+  
+  // 🛠️ NEW ADDITION: Explicit user/AI driven toggle state instead of hardcoded strings
+  const [isDecisionMaker, setIsDecisionMaker] = useState(false);
 
   // 1. Core State Mutation: Updates a contact row's status or details metadata
   const handleUpdateContact = (contactId: string, updatedFields: Partial<Contact>) => {
@@ -94,6 +94,7 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
             phone: newPhone.trim() || null,
             linkedin_url: newLinkedin.trim() || null,
             status: 'discovered', // Default state
+            is_decision_maker: isDecisionMaker, // 🛠️ NEW ADDITION: Feeds boolean to server payload
             metadata: {
               likes: likes.trim() ? likes.split(',').map(l => l.trim()) : [],
               dislikes: dislikes.trim() ? dislikes.split(',').map(d => d.trim()) : []
@@ -122,9 +123,16 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
         setContacts(prev => [...prev, newlyCreated]);
         toast.success(`${newlyCreated.name} is now saved!`, { id: toastId });
         
-        // Reset inputs and close tray
-        setNewName(''); setNewRole(''); setNewEmail(''); setNewPhone(''); setNewLinkedin(''); setLikes(''); setDislikes('');
-        setShowAddForm(false);
+        // Reset inputs and close forms cleanly
+        setNewName(''); 
+        setNewRole(''); 
+        setNewEmail(''); 
+        setNewPhone(''); 
+        setNewLinkedin(''); 
+        setLikes(''); 
+        setDislikes('');
+        setIsDecisionMaker(false); // 🛠️ NEW ADDITION: Clear explicit checker state
+        
         router.refresh();
       } catch (err) {
         toast.error('Failed to create contact track.', { id: toastId });
@@ -156,6 +164,13 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-bold text-foreground tracking-tight">{person.name}</span>
+                        
+                        {/* 🛠️ NEW ADDITION: Explicit Decision Maker Highlight Badge Tag */}
+                        {person.is_decision_maker && (
+                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[9px] font-bold px-1.5 py-0">
+                            Decision Maker
+                          </Badge>
+                        )}
                         
                         {/* Dynamic Relationship Status Toggles */}
                         <div className="flex items-center bg-muted/60 p-0.5 rounded-md border border-border/40 ml-1">
@@ -256,6 +271,21 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
             <div className="space-y-1">
               <label className="font-semibold text-muted-foreground text-[11px]">LinkedIn URL Link</label>
               <Input placeholder="linkedin.com/in/username" value={newLinkedin} onChange={e => setNewLinkedin(e.target.value)} className="h-8.5 bg-muted/10 text-xs focus:bg-background" disabled={isPending} />
+            </div>
+
+            {/* 🛠️ NEW ADDITION: Clean inline user-driven Decision Maker checkbox input */}
+            <div className="flex items-center gap-2.5 p-2.5 bg-muted/30 border border-border/40 rounded-lg select-none mt-1">
+              <input 
+                type="checkbox" 
+                id="is_decision_maker_input"
+                checked={isDecisionMaker}
+                onChange={(e) => setIsDecisionMaker(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                disabled={isPending}
+              />
+              <label htmlFor="is_decision_maker_input" className="font-bold text-muted-foreground text-[10px] uppercase tracking-wide cursor-pointer flex-1">
+                Mark as explicit Decision Maker
+              </label>
             </div>
 
             <div className="space-y-1 pt-1 border-t border-border/40">

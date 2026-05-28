@@ -1,5 +1,5 @@
 'use client';
-
+// components/leads/PipelineHeader.tsx
 import React, { useState, useTransition } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

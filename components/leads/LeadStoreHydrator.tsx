@@ -1,5 +1,6 @@
 'use client';
 
+// app/components/leads/LeadStoreHydrator.tsx
 import { useEffect } from 'react';
 import { useStore } from '@nanostores/react';
 import { $activeLead, $activeContacts, $activeTasks, $activeCoachLogs, $activeCommunications } from '@/store/leadsStore';

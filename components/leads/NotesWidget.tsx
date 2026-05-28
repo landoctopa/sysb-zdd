@@ -1,5 +1,5 @@
 'use client';
-
+// app/components/leads/NotesWidget.tsx
 import React, { useState, useTransition } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';

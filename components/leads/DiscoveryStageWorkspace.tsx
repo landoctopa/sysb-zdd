@@ -1,4 +1,5 @@
 'use client';
+// components/leads/DiscoveryStageWorkspace.tsx
 
 import React, { useState, useTransition } from 'react';
 import {
