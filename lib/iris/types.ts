@@ -89,6 +89,8 @@ export interface IrisTaskConfig {
   approval_message?: string;
   completion_gate?: CompletionGate;
   unlocks_stage_advance?: boolean;
+  skills?: string[];       // References modules inside salesFrameworkSkills (e.g., 'asking-effective-questions')
+  integrations?: string[]; // References connected tools (e.g., 'apollo', 'lusha', 'google_calendar', 'asana')
 }
 
 export interface ChannelLogic {
