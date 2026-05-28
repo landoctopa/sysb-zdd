@@ -93,20 +93,17 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     ],
     // Focused entirely on real-world business success
     exit_criteria: [
-      { 
-        condition: 'lead.contacts.length >= 2', 
-        label: 'You have at least 2 contacts in the system for backup coverage.' 
+      {
+        // Checks the contacts array automatically for at least one person marked as 'engaged'
+        condition: 'lead.contacts.some(c => c.status === "engaged")',
+        label: 'You have established regular, two-way communication with at least one key contact.'
       },
-      { 
-        condition: 'coach_state.outreach.response === "positive"', 
-        label: 'Prospect has actively engaged and provided a positive response.' 
-      },
-      { 
-        condition: 'coach_state.qualification.score >= 8', 
-        label: 'Discovery metrics verify this is a highly qualified opportunity worth pursuing.' 
+      {
+        condition: 'task.metadata.score >= 8',
+        label: 'Your discovery conversation notes confirm this project is a good fit to move forward.'
       }
     ],
-    exit_blocked_message: 'Make sure you have secured a positive response from the right people and verified project fit before advancing.',
+    exit_blocked_message: 'You need to get a positive response from a contact and verify project fit before advancing past the Discovery stage.',
   },
 
   // Stubs for later stages
