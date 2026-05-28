@@ -12,14 +12,22 @@ import {
   CheckSquare, 
   Bell, 
   ArrowRight,
-  FileText
+  Globe,
+  Tag,
+  Users2,
+  MapPin,
+  Target,
+  TrendingUp,
+  ExternalLink
 } from 'lucide-react';
 import { Database } from '@/database.types';
 
-// Import our decoupled sub-components (we will build these next)
-import PipelineHeader from './components/PipelineHeader';
-import DiscoveryStageWorkspace from './components/stages/DiscoveryStageWorkspace';
+import PipelineHeader from '@/components/leads/PipelineHeader';
+import DiscoveryStageWorkspace from '@/components/leads/DiscoveryStageWorkspace';
 import NotesWidget from '@/components/leads/NotesWidget';
+
+// Import your custom LinkedIn component handled in your first design choice
+import { LinkedInIcon } from '@/components/icons/LinkedIn';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
 type Action = Database['public']['Tables']['actions']['Row'];
@@ -32,15 +40,11 @@ interface WorkbenchProps {
 }
 
 export default function LeadWorkbenchClient({ initialLead, initialActions, initialContacts }: WorkbenchProps) {
-  // 1. Central State Trackers
   const [lead, setLead] = useState<Lead>(initialLead);
   const [actions, setActions] = useState<Action[]>(initialActions);
   const [contacts, setContacts] = useState<Contact[]>(initialContacts);
-  
-  // UI Control states
   const [activeTab, setActiveTab] = useState('workspace');
 
-  // 2. Safe State Handlers passed down to child elements
   const handleActionUpdated = (updatedAction: Action) => {
     setActions((prev) => prev.map((act) => act.id === updatedAction.id ? updatedAction : act));
   };
@@ -49,14 +53,15 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
     setActions((prev) => [newAction, ...prev]);
   };
 
-  // Get quick counts for your sidebar indicators
+  // Safely parse your background storage details vault
+  const details = (lead.company_details as Record<string, any>) || {};
+
   const pendingTasks = actions.filter(a => a.type === 'task' && a.status === 'pending');
   const recentNotifications = actions.filter(a => a.type === 'notification').slice(0, 3);
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-4 md:p-6 text-foreground">
       
-      {/* 🟢 TOP AREA: THE STEADY LIFECYCLE PROGRESS BAR Map */}
       <PipelineHeader 
         lead={lead} 
         actions={actions} 
@@ -64,10 +69,8 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
         setLead={setLead} 
       />
 
-      {/* MAIN TWO-COLUMN DISPLAY WORKSPACE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* 🏢 LEFT/CENTER SIDE: YOUR THREE CORE DATA DESKS */}
         <div className="lg:col-span-8 space-y-4">
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -85,7 +88,6 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
               </TabsList>
             </div>
 
-            {/* TAB CONTENT 1: ACTIVE CONVERSATION CHECKLIST & SCRATCHPAD */}
             <TabsContent value="workspace" className="space-y-4 mt-4 animate-fadeIn">
               {lead.status === 'discovery' && (
                 <DiscoveryStageWorkspace 
@@ -97,7 +99,6 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
                 />
               )}
 
-              {/* Secure scratchpad for fast thoughts during calls/research */}
               <NotesWidget 
                 leadId={lead.id} 
                 currentStage={lead.status} 
@@ -105,7 +106,6 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
               />
             </TabsContent>
 
-            {/* TAB CONTENT 2: IMMUTABLE SOURCING FILES AND DOSSIERS */}
             <TabsContent value="research" className="bg-card rounded-xl border border-border/60 p-5 mt-4 space-y-4 shadow-sm">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                 <Search className="h-4 w-4 text-primary" /> Background Intelligence Dossier
@@ -116,56 +116,120 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
               </div>
             </TabsContent>
 
-            {/* TAB CONTENT 3: FIRMOGRAPHICS AND THE LIVE NEWS STREAM */}
-            <TabsContent value="listening" className="bg-card rounded-xl border border-border/60 p-5 mt-4 space-y-4 shadow-sm">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <Radio className="h-4 w-4 text-primary" /> Live Company Tracking & Radar
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs border border-border/40 rounded-lg p-4 bg-background">
-                <div><span className="text-muted-foreground font-medium">Web Domain:</span> <span className="font-semibold text-foreground ml-1">{lead.website || 'Not listed'}</span></div>
-                <div><span className="text-muted-foreground font-medium">Target Company:</span> <span className="font-semibold text-foreground ml-1">{lead.company_name}</span></div>
+            {/* UPGRADED TAB CONTENT 3: CONSUMES BOTH FIXED FIELD COLUMNS AND THE DETAILS VAULT */}
+            <TabsContent value="listening" className="space-y-4 mt-4 animate-fadeIn">
+              
+              {/* PRIMARY DETAILS DIRECT GRID VIEW */}
+              <div className="bg-card rounded-xl border border-border/60 p-5 space-y-4 shadow-sm">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-primary" /> Company Profile Details
+                </h3>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  
+                  {/* Flat Column 1: Website Link */}
+                  <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
+                    <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="truncate">
+                      <span className="text-muted-foreground font-medium block text-[10px] uppercase">Web Domain</span>
+                      {lead.website ? (
+                        <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline flex items-center gap-0.5">
+                          {lead.website} <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      ) : <span className="text-muted-foreground">Unlisted</span>}
+                    </div>
+                  </div>
+
+                  {/* Flat Column 2: Industry Tag */}
+                  <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
+                    <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <span className="text-muted-foreground font-medium block text-[10px] uppercase">Industry Sector</span>
+                      <span className="font-semibold text-foreground">{lead.industry || 'Not Selected'}</span>
+                    </div>
+                  </div>
+
+                  {/* Flat Column 3: Brand LinkedIn with Custom Corporate Icon */}
+                  <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
+                    <div className="text-muted-foreground shrink-0"><LinkedInIcon size={16} /></div>
+                    <div className="truncate">
+                      <span className="text-muted-foreground font-medium block text-[10px] uppercase">LinkedIn Company Page</span>
+                      {lead.linkedin_url ? (
+                        <a href={lead.linkedin_url} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline flex items-center gap-0.5">
+                          View Profile <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      ) : <span className="text-muted-foreground">Not Connected</span>}
+                    </div>
+                  </div>
+
+                  {/* Vault Extraction 1: Headcount */}
+                  <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
+                    <Users2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div>
+                      <span className="text-muted-foreground font-medium block text-[10px] uppercase">Approximate Headcount</span>
+                      <span className="font-semibold text-foreground">{details.employee_count ? `${details.employee_count} employees` : 'Unknown Size'}</span>
+                    </div>
+                  </div>
+
+                  {/* Vault Extraction 2: HQ Location */}
+                  <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="truncate">
+                      <span className="text-muted-foreground font-medium block text-[10px] uppercase">Corporate Headquarters</span>
+                      <span className="font-semibold text-foreground">{details.address || 'Not Added'}</span>
+                    </div>
+                  </div>
+
+                  {/* Vault Extraction 3: Target Market */}
+                  <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
+                    <Target className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="truncate">
+                      <span className="text-muted-foreground font-medium block text-[10px] uppercase">Primary Target Market</span>
+                      <span className="font-semibold text-foreground">{details.target_market || 'Not Specified'}</span>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Optional Stock Ticker Banner Row */}
+                {details.stock_ticker && (
+                  <div className="p-2.5 bg-secondary/10 border border-secondary/20 rounded-lg text-xs flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-secondary" />
+                    <span>Public Equity Market Trading Symbol: <span className="font-mono font-bold text-foreground bg-background px-1.5 py-0.5 rounded border border-border/40">{details.stock_ticker}</span></span>
+                  </div>
+                )}
               </div>
-              <div className="p-4 border border-dashed border-border/60 rounded-lg text-center text-xs text-muted-foreground">
+
+              <div className="p-4 bg-card border border-dashed border-border/60 rounded-xl text-center text-xs text-muted-foreground">
                 Continuous web tracking is active. Incoming updates regarding executive shifts or announcements will update here automatically.
               </div>
+
             </TabsContent>
           </Tabs>
 
         </div>
 
-        {/* 📋 RIGHT SIDE: THE LIGHTWEIGHT HELPER TRAY (RESPONSIVE SIDEBAR) */}
         <div className="lg:col-span-4 space-y-4">
-          
-          {/* QUICK SUMMARY TRAYS */}
           <div className="bg-card rounded-xl border border-border/60 p-4 shadow-sm space-y-4 text-xs">
             
-            {/* Quick Link: Jump into Relationship Board */}
             <div className="border-b border-border/40 pb-3 flex items-center justify-between">
               <span className="font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-primary" /> Mapped People ({contacts.length})
               </span>
-              <Link 
-                href={`/leads/${lead.id}/contacts`}
-                className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1 transition-colors"
-              >
+              <Link href={`/leads/${lead.id}/contacts`} className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1 transition-colors">
                 Full Directory <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
 
-            {/* Quick Link: Jump into Full History Audit Logs */}
             <div className="border-b border-border/40 pb-3 flex items-center justify-between">
               <span className="font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <History className="h-4 w-4 text-primary" /> Total Logs Logs ({actions.length})
+                <History className="h-4 w-4 text-primary" /> Total Logs ({actions.length})
               </span>
-              <Link 
-                href={`/leads/${lead.id}/activity`}
-                className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1 transition-colors"
-              >
+              <Link href={`/leads/${lead.id}/activity`} className="text-primary hover:underline text-[11px] font-semibold flex items-center gap-1 transition-colors">
                 Search Activity <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
 
-            {/* QUICK PREVIEW CHECKLIST TRACKER */}
             <div className="space-y-2 pt-1">
               <span className="font-bold text-muted-foreground uppercase tracking-wider block mb-1 flex items-center gap-1.5">
                 <CheckSquare className="h-4 w-4 text-primary" /> Upcoming Checklist Steps
@@ -183,7 +247,6 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
               )}
             </div>
 
-            {/* LIGHTWEIGHT NOTIFICATION LOG BUCKET */}
             <div className="space-y-2 pt-2 border-t border-border/40">
               <span className="font-bold text-muted-foreground uppercase tracking-wider block mb-1 flex items-center gap-1.5">
                 <Bell className="h-4 w-4 text-primary" /> System Notifications
@@ -202,7 +265,6 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
             </div>
 
           </div>
-
         </div>
 
       </div>

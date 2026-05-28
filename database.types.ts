@@ -138,10 +138,12 @@ export type Database = {
           is_decision_maker: boolean | null
           lead_id: string
           linkedin_url: string | null
+          metadata: Json | null
           name: string
           notes: string | null
           phone: string | null
           role: string | null
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -151,10 +153,12 @@ export type Database = {
           is_decision_maker?: boolean | null
           lead_id: string
           linkedin_url?: string | null
+          metadata?: Json | null
           name: string
           notes?: string | null
           phone?: string | null
           role?: string | null
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -164,10 +168,12 @@ export type Database = {
           is_decision_maker?: boolean | null
           lead_id?: string
           linkedin_url?: string | null
+          metadata?: Json | null
           name?: string
           notes?: string | null
           phone?: string | null
           role?: string | null
+          status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -176,6 +182,42 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dismissed_signals: {
+        Row: {
+          created_at: string
+          id: string
+          raw_signal_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          raw_signal_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          raw_signal_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dismissed_signals_raw_signal_id_fkey"
+            columns: ["raw_signal_id"]
+            isOneToOne: false
+            referencedRelation: "raw_signals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dismissed_signals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -247,12 +289,15 @@ export type Database = {
         Row: {
           ai_coach_state: Json
           business_justification: string | null
+          company_details: Json | null
           company_name: string | null
           country: string | null
           created_at: string
           deal_timeline: string | null
           hotness_score: number | null
           id: string
+          industry: string | null
+          linkedin_url: string | null
           raw_signal_id: string | null
           status: string
           strategic_analysis: string | null
@@ -260,16 +305,20 @@ export type Database = {
           trigger_alignment: string | null
           updated_at: string
           user_id: string
+          website: string | null
         }
         Insert: {
           ai_coach_state?: Json
           business_justification?: string | null
+          company_details?: Json | null
           company_name?: string | null
           country?: string | null
           created_at?: string
           deal_timeline?: string | null
           hotness_score?: number | null
           id?: string
+          industry?: string | null
+          linkedin_url?: string | null
           raw_signal_id?: string | null
           status?: string
           strategic_analysis?: string | null
@@ -277,16 +326,20 @@ export type Database = {
           trigger_alignment?: string | null
           updated_at?: string
           user_id: string
+          website?: string | null
         }
         Update: {
           ai_coach_state?: Json
           business_justification?: string | null
+          company_details?: Json | null
           company_name?: string | null
           country?: string | null
           created_at?: string
           deal_timeline?: string | null
           hotness_score?: number | null
           id?: string
+          industry?: string | null
+          linkedin_url?: string | null
           raw_signal_id?: string | null
           status?: string
           strategic_analysis?: string | null
@@ -294,6 +347,7 @@ export type Database = {
           trigger_alignment?: string | null
           updated_at?: string
           user_id?: string
+          website?: string | null
         }
         Relationships: [
           {
