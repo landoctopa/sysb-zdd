@@ -1,52 +1,64 @@
 /**
  * /lib/iris/types.ts
  *
- * Core Iris types – reuses Supabase database types for table rows,
- * adds orchestration-specific types (playbook, resources, etc.).
+ * Core Iris types – Cleaned of legacy tables and fully mapped to the
+ * unified, polymorphic 'actions' ledger schema rules.
  */
 
 import type { Database } from '../../database.types';
 
 // ============================================================
-// Re-exported database row types (for convenience)
+// Core Database Row Definitions
 // ============================================================
 
 export type Lead = Database['public']['Tables']['leads']['Row'];
 export type Contact = Database['public']['Tables']['contacts']['Row'];
-export type Communication = Database['public']['Tables']['communications']['Row'];
-export type Task = Database['public']['Tables']['tasks']['Row'];
 export type CoachLog = Database['public']['Tables']['ai_coach_logs']['Row'];
 
+/**
+ * The Unified Polymorphic Ledger Row
+ * This replaces both the old 'tasks' and 'communications' tables.
+ */
+export type Action = Database['public']['Tables']['actions']['Row'];
+
+/**
+ * Orchestrator Compatibility Alias
+ * By pointing the legacy 'Task' token straight to the unified Action row,
+ * your background orchestration scripts will compile and execute contextually without modification.
+ */
+export type Task = Action;
+
 // ============================================================
-// Enum types from database (mapped to TypeScript unions)
+// Database Enum Declarations (Mapped to Type Unions)
 // ============================================================
 
-export type LeadStage = Database['public']['Enums']['lead_status']; // 'new' | 'contacted' | 'proposal' | 'negotiation' | 'won' | 'lost'
-export type TaskChannel = Database['public']['Enums']['task_channel'];
-export type TaskStatus = Database['public']['Enums']['task_status'];
+export type LeadStage = Database['public']['Enums']['lead_status'];
 export type CoachLogType = Database['public']['Enums']['coach_log_type'];
-export type CommunicationChannel = Database['public']['Enums']['communication_channel'];
-export type CommunicationDirection = Database['public']['Enums']['communication_direction'];
+
+/** Replaces legacy 'task_channel' and 'communication_channel' enums */
+export type ActionChannel = Database['public']['Enums']['action_channel'];
+export type TaskChannel = ActionChannel; // Compatibility alias for playbook.config.ts
+
+/** Replaces legacy 'task_status' and 'action_status' tracking */
+export type ActionStatus = Database['public']['Enums']['action_status'];
+export type TaskStatus = ActionStatus; // Compatibility alias
+
+/** Identifies the nature of the polymorphic action card */
+export type ActionType = Database['public']['Enums']['action_type'];
 
 // ============================================================
-// Helper type for coach_state (JSONB)
-// ============================================================
-
-export type CoachState = Record<string, any>;
-
-// ============================================================
-// Extended types (add relations that Supabase types don't include)
+// Extended Relational Assembly Types
 // ============================================================
 
 export interface LeadWithRelations extends Lead {
   contacts?: Contact[];
-  communications?: Communication[];
-  tasks?: Task[];
   coach_logs?: CoachLog[];
+  /** Replaces old individual tasks/communications array feeds */
+  actions?: Action[];
 }
 
 // ============================================================
-// Playbook configuration types (not in DB)
+// Playbook Structure Definitions (Orchestration Layer Only)
 // ============================================================
 
 export interface IrisStageConfig {
@@ -64,7 +76,7 @@ export interface IrisStageConfig {
 export interface IrisTaskConfig {
   id: string;
   title: string;
-  channel: TaskChannel | 'auto';
+  channel: TaskChannel | 'auto'; // Tied safely to action_channel enums
   due_business_days: number;
   required: boolean;
   depends_on?: string[];
@@ -134,7 +146,7 @@ export interface IrisResources {
 }
 
 // ============================================================
-// Orchestrator return types
+// Orchestrator Execution Return Interfaces
 // ============================================================
 
 export interface StageEntryResult {
@@ -154,8 +166,10 @@ export interface AiActionResult {
 }
 
 // ============================================================
-// EvalContext for condition evaluator
+// Safe Context Evaluation Bounds
 // ============================================================
+
+export type CoachState = Record<string, any>;
 
 export interface EvalContext {
   lead: Lead;

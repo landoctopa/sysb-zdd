@@ -58,14 +58,17 @@ export class IrisOrchestrator {
   }
 
   confirmTask(suggestion: Partial<Task>, stage: LeadStage): Partial<Task> {
-    return {
-      ...suggestion,
-      status: 'pending',
+  const currentMeta = (suggestion.metadata as Record<string, any>) || {};
+  return {
+    ...suggestion,
+    status: 'pending',
+    metadata: {
+      ...currentMeta,
       feedback_submitted: false,
-      user_approved: false,
-      auto_prompt: suggestion.auto_prompt ?? false,
-    };
-  }
+      user_approved: false
+    }
+  };
+}
 
   async onFeedbackSubmit(taskConfigId: string, answers: Record<string, any>): Promise<AiActionResult | null> {
     const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
@@ -85,25 +88,30 @@ export class IrisOrchestrator {
     return null;
   }
 
-  canCompleteTask(taskConfigId: string, taskRow: Partial<Task>): GateCheckResult {
-    const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
-    const taskConfig = config?.tasks.find(t => t.id === taskConfigId);
-    if (!taskConfig?.completion_gate) return { allowed: true };
+ canCompleteTask(taskConfigId: string, taskRow: Partial<Task>): GateCheckResult {
+  const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
+  const taskConfig = config?.tasks.find(t => t.id === taskConfigId);
+  if (!taskConfig?.completion_gate) return { allowed: true };
 
-    const ctx: EvalContext = {
-      ...this.context,
-      task: {
-        ...taskRow,
-        feedback_submitted: taskRow.feedback_submitted ?? false,
-        user_approved: taskRow.user_approved ?? false,
-      },
-    };
+  const taskMeta = (taskRow.metadata as Record<string, any>) || {};
 
-    const allowed = evaluateCondition(taskConfig.completion_gate.condition, ctx);
-    return allowed
-      ? { allowed: true }
-      : { allowed: false, message: taskConfig.completion_gate.blocked_message };
-  }
+  const ctx: EvalContext = {
+    ...this.context,
+    task: {
+      ...taskRow,
+      metadata: {
+        ...taskMeta,
+        feedback_submitted: taskMeta.feedback_submitted ?? false,
+        user_approved: taskMeta.user_approved ?? false,
+      }
+    },
+  };
+
+  const allowed = evaluateCondition(taskConfig.completion_gate.condition, ctx);
+  return allowed
+    ? { allowed: true }
+    : { allowed: false, message: taskConfig.completion_gate.blocked_message };
+}
 
   canAdvanceStage(): { allowed: boolean; criteriaResults: CriterionResult[]; blockedMessage?: string } {
     const config = IRIS_PLAYBOOK[this.lead.status as LeadStage];
@@ -236,32 +244,30 @@ export class IrisOrchestrator {
   }
 
   private buildSuggestedTask(taskConfig: IrisTaskConfig, stage: LeadStage): Partial<Task> {
-    const title = interpolateTemplate(taskConfig.title, this.context);
-    const channel = this.resolveChannel(taskConfig);
-    const dueDate = addBusinessDays(new Date(), taskConfig.due_business_days);
+  const title = interpolateTemplate(taskConfig.title, this.context);
+  const channel = this.resolveChannel(taskConfig);
+  const dueDate = addBusinessDays(new Date(), taskConfig.due_business_days);
 
-    // FIX: Dynamically swap the generic tip for the custom DeepSeek guide on the research task
-    let irisTip = taskConfig.iris_tip ? interpolateTemplate(taskConfig.iris_tip, this.context) : null;
-
-    if (taskConfig.id === 'research_contacts' && (this.lead.ai_coach_state as any)?.ai_dossier?.contact_qualification_guide) {
-      irisTip = (this.lead.ai_coach_state as any).ai_dossier.contact_qualification_guide;
-    } else if (taskConfig.id === 'research_contacts' && (this.lead as any).contact_qualification_guide) {
-      // Or if you mapped it directly to a column
-      irisTip = (this.lead as any).contact_qualification_guide;
-    }
-
-    return {
-      lead_id: this.lead.id,
-      stage,
-      task_config_id: taskConfig.id,
-      title,
-      channel,
-      due_date: dueDate.toISOString(),
-      required: taskConfig.required,
-      iris_tip: irisTip, // Renders dynamically inside TaskRow!
-      auto_prompt: taskConfig.feedback_prompt?.trigger === 'on_create',
-    };
+  let irisTip = taskConfig.iris_tip ? interpolateTemplate(taskConfig.iris_tip, this.context) : null;
+  if (taskConfig.id === 'execute_spin_call' && (this.lead.ai_coach_state as any)?.ai_dossier?.contact_qualification_guide) {
+    irisTip = (this.lead.ai_coach_state as any).ai_dossier.contact_qualification_guide;
   }
+
+  return {
+    lead_id: this.lead.id,
+    stage,
+    title,
+    channel,
+    due_date: dueDate.toISOString(),
+    required: taskConfig.required,
+    iris_tip: irisTip,
+    type: 'task', // Sets polymorphic required discriminator
+    metadata: {
+      task_config_id: taskConfig.id,
+      auto_prompt: taskConfig.feedback_prompt?.trigger === 'on_create',
+    }
+  };
+}
 
   private resolveChannel(taskConfig: IrisTaskConfig): Task['channel'] {
     if (taskConfig.channel !== 'auto') return taskConfig.channel;
@@ -317,12 +323,12 @@ export class IrisOrchestrator {
   }
 
   private getCompletedTaskConfigIds(): Set<string> {
-    return new Set(
-      this.existingTasks
-        .filter(t => t.status === 'completed' && t.task_config_id)
-        .map(t => t.task_config_id!)
-    );
-  }
+  return new Set(
+    this.existingTasks
+      .filter(t => t.status === 'completed' && (t.metadata as any)?.task_config_id)
+      .map(t => (t.metadata as any).task_config_id!)
+  );
+}
 
   private hasNoTaskActivitySince(since: Date): boolean {
     const activityCount = this.existingTasks.filter(t => {
