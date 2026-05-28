@@ -1,53 +1,45 @@
-// app/leads/[id]/page.tsx
 import { createClient } from '@/utils/supabase/server';
-import { notFound, redirect } from 'next/navigation';
-import { PageContainer } from '@/components/layout/PageContainer';
+import { notFound } from 'next/navigation';
 import LeadWorkbenchClient from './LeadWorkbenchClient';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function LeadDetailPage({ params }: PageProps) {
+export default async function LeadWorkbenchPage({ params }: PageProps) {
   const supabase = await createClient();
   const { id } = await params;
 
-  // 1. Authenticate user context to maintain secure multi-tenant boundaries
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    redirect('/login');
-  }
-
-  // 2. Fetch the root lead file
-  const { data: lead, error: leadError } = await supabase
+  // 1. Pull down the target lead file record
+  const { data: lead } = await supabase
     .from('leads')
     .select('*')
     .eq('id', id)
-    .eq('user_id', user.id)
     .single();
 
-  if (leadError || !lead) {
+  if (!lead) {
     notFound();
   }
 
-  // 3. Fetch all timeline entries associated with this deal from our unified ledger
-  const { data: actions, error: actionsError } = await supabase
+  // 2. Pull down the related task records from your unified ledger
+  const { data: actions } = await supabase
     .from('actions')
     .select('*')
     .eq('lead_id', id)
     .order('created_at', { ascending: false });
 
-  if (actionsError) {
-    console.error('[Workbench Fetch Error]: Failed to load ledger:', actionsError.message);
-  }
+  // 3. Pull down your newly updated contact relationship profiles
+  const { data: contacts } = await supabase
+    .from('contacts')
+    .select('*')
+    .eq('lead_id', id)
+    .order('created_at', { ascending: true });
 
   return (
-    <PageContainer className="py-6">
-      {/* Hand data off to our interactive workbench client */}
-      <LeadWorkbenchClient 
-        initialLead={lead} 
-        initialActions={actions || []} 
-      />
-    </PageContainer>
+    <LeadWorkbenchClient 
+      initialLead={lead} 
+      initialActions={actions || []} 
+      initialContacts={contacts || []} 
+    />
   );
 }
