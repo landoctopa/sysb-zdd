@@ -3,13 +3,15 @@ import { Database } from '@/database.types';
 import { triggerEventDetectionSkill } from './trigger-event-detection';
 import { idealCustomerProfileMatchingSkill } from './ideal-customer-profile-matching';
 
-// Define explicit types for incoming data constraints
+// Import your brand new human-centered skill blocks cleanly
+import { contactPersonaFilteringSkill } from './contact-persona-filtering';
+import { outreachCopywritingGenerationSkill } from './outreach-copywriting-generation';
+
 interface SignalPromptContext {
   profile: Database['public']['Tables']['profiles']['Row'];
   rawSignal: Database['public']['Tables']['raw_signals']['Row'];
 }
 
-// Ensure every imported skill module satisfies the precise contract rules
 interface IrisSkillModule {
   id: string;
   name: string;
@@ -17,22 +19,22 @@ interface IrisSkillModule {
   prompt: string;
 }
 
+// Map all active modular skills into your main system dictionary
 const skillsRegistry: Record<string, IrisSkillModule> = {
   'trigger-event-detection': triggerEventDetectionSkill,
-  'ideal-customer-profile-matching': idealCustomerProfileMatchingSkill
+  'ideal-customer-profile-matching': idealCustomerProfileMatchingSkill,
+  'contact-persona-filtering': contactPersonaFilteringSkill, // Fully registered
+  'outreach-copywriting-generation': outreachCopywritingGenerationSkill // Fully registered
 };
 
 /**
  * Consumes modular configurations and constructs the absolute master system blueprint
  */
 export function buildSignalAnalysisPrompt(requestedSkills: string[], context: SignalPromptContext): string {
-  // Pull, verify, and stitch together requested string modules
   const activeSkillsPrompt = requestedSkills
     .map(skillId => {
       const skillModule = skillsRegistry[skillId];
       if (!skillModule) return ``;
-      
-      // We can inject a markdown comment tracking which exact version compiled into this run
       return `\n${skillModule.prompt}`;
     })
     .join('\n');
