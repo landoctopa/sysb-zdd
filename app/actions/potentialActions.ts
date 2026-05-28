@@ -35,7 +35,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         user_id: user.id,
         raw_signal_id: signalId,
         company_name: rawSignal.company_name || 'Unknown Company',
-        status: 'potential', // Initializes our stage taxonomy tracker
+        status: 'signal', // 🛠️ FIX: Initializes using the correct sequence entry enum tag
         hotness_score: dossier.hotness_score || 0,
         
         // Deep-freeze the contextual research and triage checks
@@ -56,19 +56,20 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         strategic_hurdles: dossier.hurdles || null,
         business_justification: dossier.business_justification || null,
         deal_timeline: dossier.estimated_sales_cycle || null,
+        company_details: {} // Initialize the flexible vault dictionary cleanly
       })
       .select()
       .single();
 
     if (leadError) throw new Error(`Lead instantiation rejected: ${leadError.message}`);
 
-    // 4. Seed the polymorphic actions ledger with required fields matching your fresh Postgres constraints
+    // 4. Seed the polymorphic actions ledger with required fields
     const { error: actionsError } = await supabase
       .from('actions')
       .insert([
         {
           lead_id: lead.id,
-          stage: 'potential',             // Explicitly passes your lead_status enum rule
+          stage: 'signal',               // 🛠️ FIX: Aligned stage tag
           type: 'notification',           // Polymorphic type
           channel: 'iris',                // Driven by Iris
           status: 'completed',            // Instantly marked as historical timeline item
@@ -79,7 +80,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         },
         {
           lead_id: lead.id,
-          stage: 'potential',
+          stage: 'signal',               // 🛠️ FIX: Aligned stage tag
           type: 'notification',
           channel: 'iris',
           status: 'completed',
@@ -109,7 +110,6 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
 
 /**
  * Commits a signal ID to the suppression table to remove it from the user's feed
- * without polluting the core leads metrics portfolio.
  */
 export async function dismissSignal(signalId: string) {
   try {
@@ -128,11 +128,9 @@ export async function dismissSignal(signalId: string) {
       });
 
     if (error) {
-      // If it's a duplicate insertion error, fail gracefully since it's already dismissed
       if (error.code !== '23505') throw error;
     }
 
-    // Refresh layout view boundaries
     revalidatePath('/signals');
     return { success: true };
 
