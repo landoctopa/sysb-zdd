@@ -5,14 +5,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { 
-  Briefcase, 
-  Search, 
-  Radio, 
-  History, 
-  Users, 
-  CheckSquare, 
-  Bell, 
+import {
+  Briefcase,
+  Search,
+  Radio,
+  History,
+  Users,
+  CheckSquare,
+  Bell,
   ArrowRight,
   Globe,
   Tag,
@@ -63,18 +63,18 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-4 md:p-6 text-foreground">
-      
-      <PipelineHeader 
-        lead={lead} 
-        actions={actions} 
-        contacts={contacts} 
-        setLead={setLead} 
+
+      <PipelineHeader
+        lead={lead}
+        actions={actions}
+        contacts={contacts}
+        setLead={setLead}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
+
         <div className="lg:col-span-8 space-y-4">
-          
+
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="border-b border-border/60 pb-2">
               <TabsList className="bg-muted/60 p-1">
@@ -92,19 +92,25 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
 
             <TabsContent value="workspace" className="space-y-4 mt-4 animate-fadeIn">
               {lead.status === 'discovery' && (
-                <DiscoveryStageWorkspace 
+                <DiscoveryStageWorkspace
                   lead={lead}
                   actions={actions}
-                  contacts={contacts}
+                  contacts={contacts} // Must be managed via React useState state hooks in this component
                   onActionUpdated={handleActionUpdated}
                   onActionCreated={handleActionCreated}
+                  onLeadUpdated={setLead}
+
+                  // 🛠️ FIX: Reactive client-state updates to avoid manual browser refreshes
+                  onContactCreated={(newContact) => setContacts((prev) => [...prev, newContact])}
+                  onContactUpdated={(updatedContact) => setContacts((prev) => prev.map(c => c.id === updatedContact.id ? updatedContact : c))}
+                  onContactDeleted={(id) => setContacts((prev) => prev.filter(c => c.id !== id))}
                 />
               )}
 
-              <NotesWidget 
-                leadId={lead.id} 
-                currentStage={lead.status} 
-                onNoteSaved={handleActionCreated} 
+              <NotesWidget
+                leadId={lead.id}
+                currentStage={lead.status}
+                onNoteSaved={handleActionCreated}
               />
             </TabsContent>
 
@@ -120,15 +126,15 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
 
             {/* UPGRADED TAB CONTENT 3: CONSUMES BOTH FIXED FIELD COLUMNS AND THE DETAILS VAULT */}
             <TabsContent value="listening" className="space-y-4 mt-4 animate-fadeIn">
-              
+
               {/* PRIMARY DETAILS DIRECT GRID VIEW */}
               <div className="bg-card rounded-xl border border-border/60 p-5 space-y-4 shadow-sm">
                 <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                   <Radio className="h-4 w-4 text-primary" /> Company Profile Details
                 </h3>
-                
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  
+
                   {/* Flat Column 1: Website Link */}
                   <div className="flex items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-lg">
                     <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -213,7 +219,7 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
 
         <div className="lg:col-span-4 space-y-4">
           <div className="bg-card rounded-xl border border-border/60 p-4 shadow-sm space-y-4 text-xs">
-            
+
             <div className="border-b border-border/40 pb-3 flex items-center justify-between">
               <span className="font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Users className="h-4 w-4 text-primary" /> Mapped People ({contacts.length})
