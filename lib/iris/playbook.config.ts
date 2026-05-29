@@ -13,12 +13,13 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     tasks: [
       {
         id: 'verify_company_details',
+        order: 1, // 🛠️ Explicit configuration order key
         title: 'Check company details for {{lead.company_name}}',
         channel: 'internal',
         due_business_days: 1,
         required: true,
         iris_tip: 'Take a quick look at their website. You can use your connected data apps to fill in the blanks automatically.',
-        integrations: ['apollo', 'lusha'], // Purely tool-based research buttons
+        integrations: ['apollo', 'lusha'],
         completion_gate: {
           condition: 'task.metadata.verified_domain !== undefined',
           blocked_message: 'Confirm the company web address or details to lock in your initial research.',
@@ -26,6 +27,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'find_key_people',
+        order: 2, // 🛠️ Explicit configuration order key
         title: 'Find the right people to reach out to',
         channel: 'internal',
         due_business_days: 1,
@@ -41,6 +43,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'pre_outreach_prep',
+        order: 3, // 🛠️ Explicit configuration order key
         title: 'Quick review before first contact',
         channel: 'internal',
         due_business_days: 1,
@@ -54,13 +57,14 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'send_first_outreach',
+        order: 4, // 🛠️ Explicit configuration order key
         title: 'Send your initial outreach message',
         channel: 'auto',
         due_business_days: 2,
         required: true,
         depends_on: ['pre_outreach_prep'],
         iris_tip: 'Choose your preferred channel below. Iris will write a friendly, brief message referencing their recent updates.',
-        skills: ['outreach-copywriting-generation'], // ONLY brings in AI here to draft templates
+        skills: ['outreach-copywriting-generation'],
         ai_actions: ['draft_outreach_email', 'draft_linkedin_message'],
         completion_gate: {
           condition: 'task.metadata.message_sent === true',
@@ -69,41 +73,23 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'log_discovery_call',
+        order: 5, // 🛠️ Explicit configuration order key
         title: 'Have your discovery chat and check for deal fit',
         channel: 'meeting',
         due_business_days: 3,
         required: true,
         depends_on: ['send_first_outreach'],
         iris_tip: 'Listen to their challenges. Ask about their goals, who makes final choices, when they want to start, and what kind of budget is available.',
-        integrations: ['google_calendar'], // Only calendar apps belong here for meeting slots
+        integrations: ['google_calendar'],
         completion_gate: {
           condition: 'task.metadata.score !== undefined && task.metadata.financial_impact !== undefined',
           blocked_message: 'Log your conversation details and note down the financial impact of their problem to save your work.',
         }
       }
     ],
-    checkback_rules: [
-      {
-        id: 'discovery_stalled_3d',
-        trigger_after_business_days: 3,
-        condition: 'no_task_activity',
-        iris_message_template: 'gentle_nudge',
-        suggested_actions: []
-      }
-    ],
-    // Focused entirely on real-world business success
-    exit_criteria: [
-      {
-        // Checks the contacts array automatically for at least one person marked as 'engaged'
-        condition: 'lead.contacts.some(c => c.status === "engaged")',
-        label: 'You have established regular, two-way communication with at least one key contact.'
-      },
-      {
-        condition: 'task.metadata.score >= 8',
-        label: 'Your discovery conversation notes confirm this project is a good fit to move forward.'
-      }
-    ],
-    exit_blocked_message: 'You need to get a positive response from a contact and verify project fit before advancing past the Discovery stage.',
+    checkback_rules: [],
+    exit_criteria: [],
+    exit_blocked_message: 'You need to get a positive response from a contact and verify project fit before advancing past the Discovery stage.'
   },
 
   // Stubs for later stages

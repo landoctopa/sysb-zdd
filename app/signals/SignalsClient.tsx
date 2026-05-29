@@ -279,7 +279,7 @@ export default function SignalsClient({ profile }: { profile: any }) {
                 {isExpanded && isAnalyzing && (
                   <div className="border-t border-border/40 p-6 bg-muted/10 flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground animate-pulse">
                     <Brain className="h-6 w-6 animate-bounce text-primary/70" />
-                    <p className="font-medium">Iris is compiling your strategic matching dossier using DeepSeek...</p>
+                    <p className="font-medium">Iris is generating strategic analysis for {signal.company_name} ...</p>
                   </div>
                 )}
 

@@ -76,6 +76,7 @@ export interface IrisStageConfig {
 export interface IrisTaskConfig {
   id: string;
   title: string;
+  order: number; // 🛠️ Explicit order key for deterministic sequencing
   channel: TaskChannel | 'auto'; // Tied safely to action_channel enums
   due_business_days: number;
   required: boolean;

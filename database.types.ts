@@ -29,6 +29,7 @@ export type Database = {
           required: boolean
           stage: Database["public"]["Enums"]["lead_status"]
           status: Database["public"]["Enums"]["action_status"]
+          task_order: number | null
           title: string
           type: Database["public"]["Enums"]["action_type"]
           updated_at: string
@@ -47,6 +48,7 @@ export type Database = {
           required?: boolean
           stage: Database["public"]["Enums"]["lead_status"]
           status?: Database["public"]["Enums"]["action_status"]
+          task_order?: number | null
           title: string
           type: Database["public"]["Enums"]["action_type"]
           updated_at?: string
@@ -65,6 +67,7 @@ export type Database = {
           required?: boolean
           stage?: Database["public"]["Enums"]["lead_status"]
           status?: Database["public"]["Enums"]["action_status"]
+          task_order?: number | null
           title?: string
           type?: Database["public"]["Enums"]["action_type"]
           updated_at?: string

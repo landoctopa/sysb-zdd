@@ -88,3 +88,5 @@ The $activeCoachLogs is populated by LeadStoreHydrator on page load. When a new 
 13. Quick Action Modals (floating bar) -  not updated yet, would need detailed implementation
 
 Note: I want full implmentation of parts before we move ahead. I want to make sure whatever we write actually works properly
+
+

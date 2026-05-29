@@ -37,15 +37,15 @@ interface PipelineHeaderProps {
   setLead: React.Dispatch<React.SetStateAction<Lead>>;
 }
 
+// 🛠️ REMOVED SIGNAL STEP: Discovery is now the official start block of the deal view
 const STAGES: { value: LeadStage; label: string; desc: string }[] = [
-  { value: 'signal', label: '1. Signal', desc: 'New Opportunity' },
-  { value: 'discovery', label: '2. Discovery', desc: 'Research & Chat' },
-  { value: 'engaged', label: '3. Engaged', desc: 'Active Talk' },
-  { value: 'solution_fit', label: '4. Value Fit', desc: 'Solution Matching' },
-  { value: 'proposal', label: '5. Proposal', desc: 'Price Offered' },
-  { value: 'negotiation', label: '6. Negotiate', desc: 'Reviewing Terms' },
-  { value: 'close', label: '7. Close', desc: 'Final Verdict' },
-  { value: 'post_close', label: '8. Handoff', desc: 'Getting Started' }
+  { value: 'discovery', label: '1. Discovery', desc: 'Research & Chat' },
+  { value: 'engaged', label: '2. Engaged', desc: 'Active Talk' },
+  { value: 'solution_fit', label: '3. Value Fit', desc: 'Solution Matching' },
+  { value: 'proposal', label: '4. Proposal', desc: 'Price Offered' },
+  { value: 'negotiation', label: '5. Negotiate', desc: 'Reviewing Terms' },
+  { value: 'close', label: '6. Close', desc: 'Final Verdict' },
+  { value: 'post_close', label: '7. Handoff', desc: 'Getting Started' }
 ];
 
 export default function PipelineHeader({ lead, actions, contacts, setLead }: PipelineHeaderProps) {
@@ -120,7 +120,6 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
               </Badge>
             </div>
             
-            {/* Clickable web link pulling directly from your new website column */}
             {lead.website ? (
               <a 
                 href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
@@ -173,7 +172,7 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1 border-t border-border/40">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1 border-t border-border/40">
         {STAGES.map((stg, index) => {
           const isCurrent = lead.status === stg.value;
           const isPast = index < currentStageIndex;
