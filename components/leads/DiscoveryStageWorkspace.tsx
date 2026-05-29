@@ -2,7 +2,7 @@
 // components/leads/DiscoveryStageWorkspace.tsx
 
 import React, { useState, useTransition } from 'react';
-import { Sparkles, CheckCircle2, HelpCircle, Loader2, Check, Mail, AlertCircle, Clock, Play, UserPlus, Trash2 } from 'lucide-react';
+import { Sparkles, CheckCircle2, HelpCircle, Loader2, Check, Mail, AlertCircle, Clock, Play, UserPlus, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,7 @@ interface DiscoveryWorkspaceProps {
   onLeadUpdated: React.Dispatch<React.SetStateAction<Lead>>;
   onContactCreated: (contact: Contact) => void;
   onContactUpdated: (contact: Contact) => void;
-  onContactDeleted: (id: string) => void; // 🛠️ Added delete handler callback prop
+  onContactDeleted: (id: string) => void;
 }
 
 export default function DiscoveryStageWorkspace({
@@ -130,19 +130,18 @@ export default function DiscoveryStageWorkspace({
     });
   };
 
-  // 🛠️ NEW: Live data-driven single contact deletion sync handler
   const handleDeleteContact = async (id: string) => {
-    const toastId = toast.loading('Removing contact from roster...');
+    const toastId = toast.loading('Removing person from roster...');
     try {
       const response = await fetch(`/api/contacts/${id}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Delete rejected');
       
-      toast.success('Contact removed successfully.', { id: toastId });
-      onContactDeleted(id); // Dynamic parent cascade refresh
+      toast.success('Person removed from roster.', { id: toastId });
+      onContactDeleted(id);
     } catch (err) {
-      toast.error('Could not delete contact profile.', { id: toastId });
+      toast.error('Could not update roster records.', { id: toastId });
     }
   };
 
@@ -232,36 +231,44 @@ export default function DiscoveryStageWorkspace({
                   </div>
                 )}
 
-                {/* TASK STEP 2: STAKEHOLDER MAPPING LOOP */}
+                {/* 🛠️ UPGRADED TASK STEP 2: FULL-WIDTH PEOPLE ROSTER WITH SUBTLE PURGE BIN BUTTONS */}
                 {configId === 'find_key_people' && (
-                  <div className="pt-1 px-1 space-y-4">
+                  <div className="pt-1 px-1 space-y-4 w-full">
                     
                     {contacts.length > 0 && (
-                      <div className="space-y-2 max-w-xl">
+                      <div className="space-y-2 w-full animate-fadeIn">
+                        {/* Clean Section Identifier Title text */}
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5 mb-1 select-none">
+                          Added people
+                        </div>
+
                         {contacts.map((person) => (
-                          <div key={person.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-4 shadow-sm animate-fadeIn text-slate-900">
-                            <div className="space-y-1 min-w-0">
+                          /* 🛠️ REFACTOR: Flipped to full container width grid lines */
+                          <div key={person.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-4 shadow-sm w-full text-slate-900">
+                            <div className="space-y-0.5 min-w-0">
                               <span className="font-bold text-slate-900 truncate text-[12px] block">{person.name}</span>
                               <span className="text-slate-500 text-[11px] font-medium block truncate">{person.role || 'No position recorded'}</span>
                             </div>
                             
-                            {/* 🛠️ ACTION BUTTON GRID: Multi-button action hub */}
-                            <div className="flex items-center gap-2 shrink-0">
+                            {/* 🛠️ REFACTOR: Subtle monochrome layout options with a ghost bin element */}
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <Button 
                                 type="button" 
                                 variant="outline"
                                 onClick={() => handleOpenEditContact(person)}
-                                className="h-7 text-[11px] font-bold border-slate-200 text-slate-700 hover:bg-slate-50 px-2.5 rounded-md shadow-sm"
+                                className="h-7.5 text-[11px] font-bold border-slate-200 text-slate-700 hover:bg-slate-50 px-3 rounded-md shadow-sm"
                               >
                                 Edit
                               </Button>
                               <Button 
                                 type="button" 
-                                variant="outline"
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => handleDeleteContact(person.id)}
-                                className="h-7 text-[11px] font-bold border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 px-2.5 rounded-md shadow-sm"
+                                className="h-7.5 w-7.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                title="Delete"
                               >
-                                Delete
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
 
@@ -276,7 +283,7 @@ export default function DiscoveryStageWorkspace({
                         onClick={handleOpenAddContact}
                         className="h-8.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white px-5 rounded-md shadow-sm gap-1 flex items-center"
                       >
-                        <UserPlus className="h-3.5 w-3.5" /> Add contact
+                        <UserPlus className="h-3.5 w-3.5" /> Add person
                       </Button>
 
                       {contacts.length >= 2 ? (
@@ -291,7 +298,7 @@ export default function DiscoveryStageWorkspace({
                       ) : (
                         <div className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-3 h-8.5 flex items-center gap-1.5 shadow-sm select-none">
                           <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" /> 
-                          Add {2 - contacts.length} more contact{2 - contacts.length > 1 ? 's' : ''} to complete this task.
+                          Add {2 - contacts.length} more person{2 - contacts.length > 1 ? 'ple' : ''} to complete this task.
                         </div>
                       )}
                     </div>
