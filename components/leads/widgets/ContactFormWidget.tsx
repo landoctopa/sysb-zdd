@@ -1,7 +1,7 @@
 'use client';
 // components/leads/widgets/ContactFormWidget.tsx
 
-import React, { useState, useTransition, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { User, Mail, Briefcase, Save, Loader2, Phone, FileText } from 'lucide-react';
@@ -21,7 +21,8 @@ interface ContactWidgetProps {
 }
 
 export default function ContactFormWidget({ lead, contact, isOpen, onClose, onSaveSuccess }: ContactWidgetProps) {
-  const [isSaving, startTransition] = useTransition();
+  // 🛠️ FIX: Using explicit useState for loading instead of useTransition to prevent async locking bugs
+  const [isSaving, setIsSaving] = useState(false);
 
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
@@ -48,7 +49,7 @@ export default function ContactFormWidget({ lead, contact, isOpen, onClose, onSa
     }
   }, [contact, isOpen]);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       toast.error('Full name is required.');
@@ -61,34 +62,41 @@ export default function ContactFormWidget({ lead, contact, isOpen, onClose, onSa
     const endpoint = isEdit ? `/api/contacts/${contact.id}` : `/api/contacts`;
     const method = isEdit ? 'PATCH' : 'POST';
 
-    startTransition(async () => {
-      try {
-        const response = await fetch(endpoint, {
-          method: method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lead_id: lead.id,
-            name: name.trim(),
-            role: role.trim() || null,
-            email: email.trim() || null,
-            linkedin_url: linkedin.trim() || null,
-            phone: phone.trim() || null,
-            notes: notes.trim() || null,
-            is_decision_maker: contact?.is_decision_maker ?? null, // Retain underlying value if edited
-            status: contact?.status || 'identified'
-          })
-        });
+    setIsSaving(true); // Engages standard component thread safety lock
 
-        if (!response.ok) throw new Error('Database write rejected');
-        const savedContact = await response.json();
+    try {
+      const response = await fetch(endpoint, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_id: lead.id,
+          name: name.trim(),
+          role: role.trim() || null,
+          email: email.trim() || null,
+          linkedin_url: linkedin.trim() || null,
+          phone: phone.trim() || null,
+          notes: notes.trim() || null,
+          is_decision_maker: contact?.is_decision_maker ?? null,
+          status: contact?.status || 'identified'
+        })
+      });
 
-        toast.success(isEdit ? 'Contact updated!' : 'Contact saved to roster!', { id: toastId });
+      if (!response.ok) throw new Error('Database write rejected');
+      const savedContact = await response.json();
+
+      toast.success(isEdit ? 'Contact updated!' : 'Contact saved to roster!', { id: toastId });
+      
+      // 🛠️ Execute callback to update array state before executing close mechanisms
+      if (typeof onSaveSuccess === 'function') {
         onSaveSuccess(savedContact, isEdit);
-        onClose();
-      } catch (err) {
-        toast.error('Could not save contact information.');
       }
-    });
+      
+      onClose(); // Cleanly unmounts modal view matrix
+    } catch (err) {
+      toast.error('Could not save contact information.', { id: toastId });
+    } finally {
+      setIsSaving(false); // Releases thread thread lock cleanly
+    }
   };
 
   return (

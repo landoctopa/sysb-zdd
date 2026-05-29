@@ -59,7 +59,7 @@ export default function DiscoveryStageWorkspace({
 
   const handleInitializePlaybook = () => {
     if (!discoveryConfig) return;
-    
+
     const payload = discoveryConfig.tasks.map(task => {
       const clearTitle = task.title.replace('{{lead.company_name}}', lead.company_name || 'this company');
       return {
@@ -92,7 +92,7 @@ export default function DiscoveryStageWorkspace({
           onActionCreated(generatedList);
         }
         setExpandedTaskId('verify_company_details');
-      } catch (err) {}
+      } catch (err) { }
     });
   };
 
@@ -123,7 +123,7 @@ export default function DiscoveryStageWorkspace({
           });
           setExpandedTaskId(nextConfigTask ? nextConfigTask.id : null);
         }
-      } catch (err) {}
+      } catch (err) { }
     });
   };
 
@@ -143,7 +143,7 @@ export default function DiscoveryStageWorkspace({
         if (!response.ok) throw new Error('Generation failed');
         const result = await response.json();
         setGeneratedDraft(result);
-      } catch (err) {}
+      } catch (err) { }
     });
   };
 
@@ -193,7 +193,7 @@ export default function DiscoveryStageWorkspace({
 
             {isExpanded && (
               <div className="p-4 border-t border-slate-200/80 bg-slate-50/50 space-y-4 text-xs animate-fadeIn text-slate-800">
-                
+
                 <div className="flex gap-2.5 leading-relaxed text-slate-600 px-1 font-medium">
                   <HelpCircle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                   <span>{playbookTask.iris_tip}</span>
@@ -213,21 +213,21 @@ export default function DiscoveryStageWorkspace({
                   </div>
                 )}
 
-                {/* TASK STEP 2: STAKEHOLDER MAPPING LOOP */}
+                {/* Task Step 2 Accordion Body: Inside components/leads/DiscoveryStageWorkspace.tsx */}
                 {configId === 'find_key_people' && (
                   <div className="pt-1 px-1 space-y-4">
-                    
-                    {/* Cleaned up layout row rendering purely name and role */}
+
+                    {/* 🛠️ RENDER CURRENTLY ADDED CONTACTS DYNAMICALLY WITH INLINE EDIT TRIGGERS */}
                     {contacts.length > 0 && (
                       <div className="space-y-2 max-w-xl">
                         {contacts.map((person) => (
-                          <div key={person.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-4 shadow-sm animate-fadeIn">
+                          <div key={person.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-4 shadow-sm animate-fadeIn text-slate-900">
                             <div className="space-y-1 min-w-0">
-                              <span className="font-bold text-slate-900 truncate text-[12px]">{person.name}</span>
+                              <span className="font-bold text-slate-900 truncate text-[12px] block">{person.name}</span>
                               <span className="text-slate-500 text-[11px] font-medium block truncate">{person.role || 'No position recorded'}</span>
                             </div>
-                            <Button 
-                              type="button" 
+                            <Button
+                              type="button"
                               variant="outline"
                               onClick={() => handleOpenEditContact(person)}
                               className="h-7 text-[11px] font-bold border-slate-200 text-slate-700 hover:bg-slate-50 px-2.5 gap-1 rounded-md shrink-0 shadow-sm"
@@ -239,27 +239,29 @@ export default function DiscoveryStageWorkspace({
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-2.5 pt-1">
-                      <Button 
-                        type="button" 
+                    {/* CONTROL BUTTON LINE */}
+                    <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                      <Button
+                        type="button"
                         onClick={handleOpenAddContact}
                         className="h-8.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white px-5 rounded-md shadow-sm gap-1 flex items-center"
                       >
                         <UserPlus className="h-3.5 w-3.5" /> Add contact
                       </Button>
 
+                      {/* Enforces your 2-contact playbook threshold directly on the screen face */}
                       {contacts.length >= 2 ? (
                         <Button
                           type="button"
                           disabled={isSaving}
                           onClick={() => handleCompleteTask(dbTask, { total_mapped: contacts.length })}
-                          className="h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-md shadow-sm border border-emerald-700"
+                          className="h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-md shadow-sm border border-emerald-700 animate-fadeIn"
                         >
                           I have completed this task
                         </Button>
                       ) : (
-                        <div className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-3 flex items-center gap-1.5 shadow-sm">
-                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" /> 
+                        <div className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-3 h-8.5 flex items-center gap-1.5 shadow-sm select-none">
+                          <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                           Add {2 - contacts.length} more contact{2 - contacts.length > 1 ? 's' : ''} to complete this task.
                         </div>
                       )}
@@ -338,11 +340,11 @@ export default function DiscoveryStageWorkspace({
         );
       })}
 
-      <CompanyDetailsWidget 
-        lead={lead} 
-        isOpen={isCompanyWidgetOpen} 
-        onClose={() => setIsCompanyWidgetOpen(false)} 
-        onSaveSuccess={(updatedLead) => onLeadUpdated(updatedLead)} 
+      <CompanyDetailsWidget
+        lead={lead}
+        isOpen={isCompanyWidgetOpen}
+        onClose={() => setIsCompanyWidgetOpen(false)}
+        onSaveSuccess={(updatedLead) => onLeadUpdated(updatedLead)}
       />
 
       <ContactFormWidget
