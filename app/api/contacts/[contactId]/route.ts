@@ -56,3 +56,41 @@ export async function PATCH(
     );
   }
 }
+
+
+// --- 🗑️ 🛠️ NEW HANDLER: DELETE INDIVIDUAL CONTACT ROW FROM ROSTER ---
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ contactId: string }> }
+) {
+  try {
+    const supabase = await createClient();
+    const { contactId } = await params;
+
+    // 1. Establish tenant isolation security boundaries
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 2. Execute target row drop matching the UUID parameter
+    const { error } = await supabase
+      .from('contacts')
+      .delete()
+      .eq('id', contactId);
+
+    if (error) {
+      console.error('[API Contacts DELETE Error]:', error.message);
+      throw error;
+    }
+
+    // Return a clean confirmation object back to your client-side fetch transaction
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('[API Contacts DELETE Exception]:', err);
+    return NextResponse.json(
+      { error: err.message || 'Failed to remove contact record' },
+      { status: 500 }
+    );
+  }
+}
