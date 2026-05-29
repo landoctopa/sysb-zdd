@@ -33,7 +33,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
         due_business_days: 1,
         required: true,
         depends_on: ['verify_company_details'],
-        iris_tip: 'Look for individuals who handle operations, marketing, or technology depending on what you offer.',
+        iris_tip: "Find the people who make the final calls, like founders, marketing directors, or branding leaders. A great trick is to check the company's website first—their 'About' or 'Team' pages usually feature their top decision-makers directly. After that, go to their LinkedIn company page and look through the employee list for your 1st or 2nd-degree connections. Finding someone you have a mutual connection with gives you an incredibly warm way to get your foot in the door.",
         skills: ['contact-persona-filtering'],
         integrations: ['apollo', 'lusha'],
         completion_gate: {

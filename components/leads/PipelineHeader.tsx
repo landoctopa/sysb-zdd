@@ -8,7 +8,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -37,7 +36,6 @@ interface PipelineHeaderProps {
   setLead: React.Dispatch<React.SetStateAction<Lead>>;
 }
 
-// 🛠️ REMOVED SIGNAL STEP: Discovery is now the official start block of the deal view
 const STAGES: { value: LeadStage; label: string; desc: string }[] = [
   { value: 'discovery', label: '1. Discovery', desc: 'Research & Chat' },
   { value: 'engaged', label: '2. Engaged', desc: 'Active Talk' },
@@ -45,7 +43,7 @@ const STAGES: { value: LeadStage; label: string; desc: string }[] = [
   { value: 'proposal', label: '4. Proposal', desc: 'Price Offered' },
   { value: 'negotiation', label: '5. Negotiate', desc: 'Reviewing Terms' },
   { value: 'close', label: '6. Close', desc: 'Final Verdict' },
-  { value: 'post_close', label: '7. Handoff', desc: 'Getting Started' }
+  { value: 'post_close', label: '8. Handoff', desc: 'Getting Started' }
 ];
 
 export default function PipelineHeader({ lead, actions, contacts, setLead }: PipelineHeaderProps) {
@@ -103,20 +101,21 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border/60 p-5 shadow-sm space-y-5">
+    /* 🛠️ VISUAL REFACTOR: Completely transparent container background layout wrapper */
+    <div className="p-0 pb-2 space-y-5">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 bg-primary/10 text-primary rounded-xl border border-primary/20 shrink-0 mt-1">
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 bg-primary/10 text-primary rounded-xl border border-primary/20 shrink-0 shadow-sm">
             <Building2 className="h-5 w-5" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
+              <h1 className="text-2xl font-black tracking-tight text-foreground">
                 {lead.company_name || 'Unknown Company'}
               </h1>
-              <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted text-[10px] uppercase font-bold tracking-wider px-2 py-0.5">
-                Current Phase: {STAGES[currentStageIndex]?.desc || lead.status}
+              <Badge variant="secondary" className="bg-muted text-muted-foreground text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-md border border-border/60">
+                Phase {currentStageIndex + 1}: {STAGES[currentStageIndex]?.desc || lead.status}
               </Badge>
             </div>
             
@@ -125,22 +124,23 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
                 href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} 
                 target="_blank" 
                 rel="noreferrer" 
-                className="text-xs text-primary hover:underline font-medium flex items-center gap-1 mt-1 w-fit"
+                className="text-xs text-primary hover:underline font-bold flex items-center gap-1 mt-1 w-fit"
               >
                 {lead.website} <ExternalLink className="h-3 w-3" />
               </a>
             ) : (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                No corporate website linked yet.
+              <p className="text-[11px] text-muted-foreground font-medium mt-1 italic">
+                No corporate website linked yet. Add domain tracking info below.
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-5 bg-muted/30 p-3 rounded-xl border border-border/40 self-start md:self-auto">
-          <div className="text-left space-y-0.5">
+        {/* Floating action pill indicators */}
+        <div className="flex items-center gap-5 bg-muted/40 p-2.5 rounded-xl border border-border/40 self-start md:self-auto shadow-sm">
+          <div className="text-left space-y-0.5 px-1.5">
             <span className="text-[10px] font-bold text-muted-foreground uppercase block tracking-wider flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-primary" /> Overall Fit Rating
+              <Sparkles className="h-3 w-3 text-primary" /> Overall Fit
             </span>
             <div className="flex items-baseline gap-0.5">
               <span className="text-xl font-black text-foreground tracking-tight">{currentFitScore}</span>
@@ -148,13 +148,13 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
             </div>
           </div>
           
-          <div className="h-8 w-px bg-border/60" />
+          <div className="h-7 w-px bg-border/80" />
 
           {nextStageObj ? (
             <Button
               onClick={handleAdvanceClick}
               disabled={isPending}
-              className="font-bold bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-9 shadow-sm px-4 gap-1"
+              className="font-bold bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8.5 shadow-sm px-4 gap-1 rounded-lg transition-transform active:scale-98"
             >
               {isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -165,14 +165,15 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
               )}
             </Button>
           ) : (
-            <div className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-3 py-1.5 rounded-lg flex items-center gap-1">
+            <div className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-emerald-500/20">
               <CheckCircle2 className="h-3.5 w-3.5" /> Final Stage Reached
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-1 border-t border-border/40">
+      {/* Progress Map Horizontal Flow Layout */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-2 border-t border-border/40">
         {STAGES.map((stg, index) => {
           const isCurrent = lead.status === stg.value;
           const isPast = index < currentStageIndex;
@@ -180,16 +181,16 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
           return (
             <div
               key={stg.value}
-              className={`rounded-lg p-2 text-center border transition-all relative overflow-hidden ${
+              className={`rounded-lg p-2.5 text-center border transition-all relative overflow-hidden ${
                 isCurrent
-                  ? 'bg-primary/10 border-primary/40 text-primary font-bold shadow-sm shadow-primary/5'
+                  ? 'bg-muted/60 border-primary/40 text-primary font-bold shadow-inner'
                   : isPast
-                  ? 'bg-muted/10 border-border/30 text-muted-foreground/80 text-xs'
-                  : 'bg-muted/20 border-border/20 text-muted-foreground/50 text-xs'
+                  ? 'bg-muted/10 border-transparent text-muted-foreground/50 text-xs line-through opacity-60'
+                  : 'bg-muted/20 border-transparent text-muted-foreground/30 text-xs'
               }`}
             >
-              <span className="block truncate tracking-tight text-[11px] font-semibold">{stg.label}</span>
-              <span className={`block text-[9px] truncate font-medium mt-0.5 ${isCurrent ? 'text-foreground/80' : 'text-muted-foreground/40'}`}>
+              <span className="block truncate tracking-tight text-[11px] font-bold">{stg.label}</span>
+              <span className={`block text-[9px] truncate font-semibold mt-0.5 ${isCurrent ? 'text-foreground/70' : 'text-muted-foreground/20'}`}>
                 {stg.desc}
               </span>
               {isPast && (

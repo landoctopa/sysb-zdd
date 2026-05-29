@@ -17,7 +17,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error('Unauthorized');
 
-    // 2. Fetch raw signal data to preserve immutable trigger context
+    // 2. Fetch raw signal data
     const { data: rawSignal, error: rawError } = await supabase
       .from('raw_signals')
       .select('*')
@@ -35,7 +35,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         user_id: user.id,
         raw_signal_id: signalId,
         company_name: rawSignal.company_name || 'Unknown Company',
-        status: 'signal', // 🛠️ FIX: Initializes using the correct sequence entry enum tag
+        status: 'discovery', // 🛠️ FIX: Initialize directly as 'discovery' to match your updated PipelineHeader
         hotness_score: dossier.hotness_score || 0,
         
         // Deep-freeze the contextual research and triage checks
@@ -56,7 +56,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         strategic_hurdles: dossier.hurdles || null,
         business_justification: dossier.business_justification || null,
         deal_timeline: dossier.estimated_sales_cycle || null,
-        company_details: {} // Initialize the flexible vault dictionary cleanly
+        company_details: {}
       })
       .select()
       .single();
@@ -69,7 +69,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
       .insert([
         {
           lead_id: lead.id,
-          stage: 'signal',               // 🛠️ FIX: Aligned stage tag
+          stage: 'discovery',             // 🛠️ FIX: Track baseline logs directly inside discovery
           type: 'notification',           // Polymorphic type
           channel: 'iris',                // Driven by Iris
           status: 'completed',            // Instantly marked as historical timeline item
@@ -80,7 +80,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         },
         {
           lead_id: lead.id,
-          stage: 'signal',               // 🛠️ FIX: Aligned stage tag
+          stage: 'discovery',             // 🛠️ FIX: Track baseline logs directly inside discovery
           type: 'notification',
           channel: 'iris',
           status: 'completed',
@@ -95,11 +95,9 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
       console.error('[Warning]: Unified action log seeding dropped:', actionsError.message);
     }
 
-    // 5. Invalidate layout caches to force instant DOM updates
     revalidatePath('/signals');
     revalidatePath('/leads');
 
-    // Return the fresh ID reference back to the client router loop
     return { leadId: lead.id };
 
   } catch (err: any) {
