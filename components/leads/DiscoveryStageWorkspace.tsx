@@ -1,7 +1,7 @@
 'use client';
 // components/leads/DiscoveryStageWorkspace.tsx
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import { Sparkles, CheckCircle2, HelpCircle, Loader2, Check, Mail, AlertCircle, Clock, Play, UserPlus, Edit3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -41,7 +41,10 @@ export default function DiscoveryStageWorkspace({
   onContactUpdated,
   onContactDeleted
 }: DiscoveryWorkspaceProps) {
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>('verify_company_details');
+  // 🛠️ FIX 1: Set initial expanded state to null, then calculate the active task dynamically
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [hasInitializedExpanded, setHasInitializedExpanded] = useState(false);
+
   const [isCompanyWidgetOpen, setIsCompanyWidgetOpen] = useState(false);
   const [isContactWidgetOpen, setIsContactWidgetOpen] = useState(false);
   const [selectedEditContact, setSelectedEditContact] = useState<Contact | null>(null);
@@ -59,6 +62,20 @@ export default function DiscoveryStageWorkspace({
   const databaseDiscoveryTasks = actions
     .filter(a => a.stage === 'discovery' && a.type === 'task')
     .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
+
+  // 🛠️ FIX 2: Scan task states on initial load and auto-expand the active one
+  useEffect(() => {
+    if (databaseDiscoveryTasks.length > 0 && !hasInitializedExpanded) {
+      const firstPendingTask = databaseDiscoveryTasks.find(t => t.status === 'pending');
+      if (firstPendingTask) {
+        setExpandedTaskId((firstPendingTask.metadata as any)?.task_config_id || null);
+      } else {
+        // Fall back to the final step if everything is already checked off
+        setExpandedTaskId('log_discovery_call');
+      }
+      setHasInitializedExpanded(true);
+    }
+  }, [actions, hasInitializedExpanded, databaseDiscoveryTasks]);
 
   const handleInitializePlaybook = () => {
     if (!discoveryConfig) return;
@@ -200,13 +217,46 @@ export default function DiscoveryStageWorkspace({
         const displayTitle = playbookTask.title.replace('{{lead.company_name}}', lead.company_name || 'this company');
 
         return (
-          <Card key={dbTask.id} className={`transition-all duration-200 overflow-hidden ${isExpanded ? 'bg-white text-slate-900 border-2 border-slate-900 ring-4 ring-slate-900/5 shadow-md' : isCompleted ? 'border-border/40 bg-muted/10 opacity-60 text-muted-foreground' : 'border-border/60 hover:border-border/100 bg-card text-foreground'}`}>
-            <div onClick={() => setExpandedTaskId(isExpanded ? null : configId)} className={`p-3.5 flex items-center justify-between gap-4 cursor-pointer select-none ${isExpanded ? 'hover:bg-slate-50' : 'hover:bg-muted/10'}`}>
+          <Card 
+            key={dbTask.id} 
+            className={`transition-all duration-200 overflow-hidden ${
+              /* 🛠️ FIX 3: Turned completed cards into a legible slate-gray layout option */
+              isExpanded 
+                ? 'bg-white text-slate-900 border-2 border-slate-900 ring-4 ring-slate-900/5 shadow-md' 
+                : isCompleted 
+                ? 'bg-slate-100 border border-slate-200 shadow-sm text-slate-700' 
+                : 'border-border/60 hover:border-border/100 bg-card text-foreground'
+            }`}
+          >
+            <div
+              onClick={() => setExpandedTaskId(isExpanded ? null : configId)}
+              className={`p-3.5 flex items-center justify-between gap-4 cursor-pointer select-none ${
+                isExpanded ? 'hover:bg-slate-50' : isCompleted ? 'hover:bg-slate-200/60' : 'hover:bg-muted/10'
+              }`}
+            >
               <div className="flex items-center gap-3 min-w-0">
-                {isCompleted ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> : <Clock className={`h-4 w-4 shrink-0 ${isExpanded ? 'text-slate-900' : 'text-blue-500'}`} />}
-                <span className={`font-bold text-xs tracking-tight truncate ${isCompleted ? 'line-through opacity-60' : ''}`}>{displayTitle}</span>
+                {isCompleted ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <Clock className={`h-4 w-4 shrink-0 ${isExpanded ? 'text-slate-900' : 'text-blue-500'}`} />
+                )}
+                <span className={`font-bold text-xs tracking-tight truncate ${isCompleted ? 'line-through text-slate-500' : ''}`}>
+                  {displayTitle}
+                </span>
               </div>
-              <Badge variant="outline" className={`text-[9px] h-5 px-2 font-bold uppercase tracking-wider border-none ${isCompleted ? 'bg-emerald-500/10 text-emerald-600' : isExpanded ? 'bg-slate-900 text-white font-black' : 'bg-muted/40 text-muted-foreground'}`}>{isCompleted ? 'Done' : 'Active'}</Badge>
+              
+              <Badge 
+                variant="outline"
+                className={`text-[9px] h-5 px-2 font-bold uppercase tracking-wider border-none ${
+                  isCompleted 
+                    ? 'bg-emerald-600/10 text-emerald-700' 
+                    : isExpanded 
+                    ? 'bg-slate-900 text-white font-black' 
+                    : 'bg-muted/40 text-muted-foreground'
+                }`}
+              >
+                {isCompleted ? 'Done' : 'Active'}
+              </Badge>
             </div>
 
             {isExpanded && (
@@ -231,26 +281,22 @@ export default function DiscoveryStageWorkspace({
                   </div>
                 )}
 
-                {/* 🛠️ UPGRADED TASK STEP 2: FULL-WIDTH PEOPLE ROSTER WITH SUBTLE PURGE BIN BUTTONS */}
+                {/* TASK STEP 2: STAKEHOLDER MAPPING LOOP */}
                 {configId === 'find_key_people' && (
                   <div className="pt-1 px-1 space-y-4 w-full">
-                    
                     {contacts.length > 0 && (
                       <div className="space-y-2 w-full animate-fadeIn">
-                        {/* Clean Section Identifier Title text */}
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5 mb-1 select-none">
                           Added people
                         </div>
 
                         {contacts.map((person) => (
-                          /* 🛠️ REFACTOR: Flipped to full container width grid lines */
                           <div key={person.id} className="bg-white border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-4 shadow-sm w-full text-slate-900">
                             <div className="space-y-0.5 min-w-0">
                               <span className="font-bold text-slate-900 truncate text-[12px] block">{person.name}</span>
                               <span className="text-slate-500 text-[11px] font-medium block truncate">{person.role || 'No position recorded'}</span>
                             </div>
                             
-                            {/* 🛠️ REFACTOR: Subtle monochrome layout options with a ghost bin element */}
                             <div className="flex items-center gap-1.5 shrink-0">
                               <Button 
                                 type="button" 
@@ -271,7 +317,6 @@ export default function DiscoveryStageWorkspace({
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-
                           </div>
                         ))}
                       </div>
