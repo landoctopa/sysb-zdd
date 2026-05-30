@@ -67,16 +67,16 @@ export default function DiscoveryStageWorkspace({
 
   // Determine current active task step dynamically on page load
   useEffect(() => {
-    if (databaseDiscoveryTasks.length > 0 && !hasInitializedExpanded) {
-      const firstPendingTask = databaseDiscoveryTasks.find(t => t.status === 'pending');
-      if (firstPendingTask) {
-        setExpandedTaskId((firstPendingTask.metadata as any)?.task_config_id || null);
-      } else {
-        setExpandedTaskId('log_discovery_call');
-      }
-      hasInitializedExpanded(true);
+  if (databaseDiscoveryTasks.length > 0 && !hasInitializedExpanded) {
+    const firstPendingTask = databaseDiscoveryTasks.find(t => t.status === 'pending');
+    if (firstPendingTask) {
+      setExpandedTaskId((firstPendingTask.metadata as any)?.task_config_id || null);
+    } else {
+      setExpandedTaskId('log_discovery_call');
     }
-  }, [actions, hasInitializedExpanded, databaseDiscoveryTasks]);
+    setHasInitializedExpanded(true); // 🛠️ FIXED: Added "set" prefix to invoke state setter
+  }
+}, [actions, hasInitializedExpanded, databaseDiscoveryTasks]);
 
   const handleInitializePlaybook = () => {
     if (!discoveryConfig) return;

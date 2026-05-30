@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Database } from '@/database.types';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
-type Action = Database['public']['Tables']['contacts']['Row'];
+type Action = Database['public']['Tables']['actions']['Row']; // 🛠️ FIXED: Pointed to actions table row instead of contacts
 
 interface Step1Props {
   lead: Lead;
