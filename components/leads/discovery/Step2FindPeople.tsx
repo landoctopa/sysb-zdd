@@ -77,20 +77,23 @@ export default function Step2FindPeople({
           <UserPlus className="h-3.5 w-3.5" /> Add person
         </Button>
 
-        {contacts.length >= 2 ? (
-          <Button
-            type="button"
-            disabled={isSaving}
-            onClick={() => onCompleteTask(dbTask, { total_mapped: contacts.length })}
-            className="h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-md shadow-sm border border-emerald-700"
-          >
-            I have completed this task
-          </Button>
-        ) : (
-          <div className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-3 h-8.5 flex items-center gap-1.5 shadow-sm select-none">
-            <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" /> 
-            Add {2 - contacts.length} more person to complete this task.
-          </div>
+        {/* 🛠专 FIX: Only show completion status UI elements if the task is currently active/pending */}
+        {dbTask.status !== 'completed' && (
+          contacts.length >= 2 ? (
+            <Button
+              type="button"
+              disabled={isSaving}
+              onClick={() => onCompleteTask(dbTask, { total_mapped: contacts.length })}
+              className="h-8.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-5 rounded-md shadow-sm border border-emerald-700"
+            >
+              I have completed this task
+            </Button>
+          ) : (
+            <div className="text-[11px] font-semibold text-slate-500 bg-white border border-slate-200 rounded-md px-3 h-8.5 flex items-center gap-1.5 shadow-sm select-none">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" /> 
+              Add {2 - contacts.length} more person to complete this task.
+            </div>
+          )
         )}
       </div>
     </div>

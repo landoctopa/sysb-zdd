@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Database } from '@/database.types';
 
 type Lead = Database['public']['Tables']['leads']['Row'];
-type Action = Database['public']['Tables']['actions']['Row']; // 🛠️ FIXED: Pointed to actions table row instead of contacts
+type Action = Database['public']['Tables']['actions']['Row'];
 
 interface Step1Props {
   lead: Lead;
@@ -27,7 +27,8 @@ export default function Step1VerifyCompany({ lead, dbTask, isSaving, onOpenWidge
         {lead.website ? 'Edit details' : 'Add company details'}
       </Button>
       
-      {lead.website && (
+      {/* 🛠️ FIX: Only show the completion button if the task isn't already completed */}
+      {lead.website && dbTask.status !== 'completed' && (
         <Button 
           type="button" 
           disabled={isSaving} 
