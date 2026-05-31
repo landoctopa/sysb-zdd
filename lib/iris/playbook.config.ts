@@ -34,7 +34,6 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
         required: true,
         depends_on: ['verify_company_details'],
         iris_tip: "Find the people who make the final calls, like founders, marketing directors, or branding leaders. A great trick is to check the company's website first—their 'About' or 'Team' pages usually feature their top decision-makers directly. After that, go to their LinkedIn company page and look through the employee list for your 1st or 2nd-degree connections. Finding someone you have a mutual connection with gives you an incredibly warm way to get your foot in the door.",
-        skills: ['contact-persona-filtering'],
         integrations: ['apollo', 'lusha'],
         completion_gate: {
           condition: 'task.metadata.total_mapped >= 2',
@@ -49,6 +48,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
         due_business_days: 1,
         required: true,
         depends_on: ['find_key_people'],
+        skills: ['contact-persona-filtering'],
         iris_tip: 'Make sure you have a clear idea of what this company does and what parts of their business you can help improve.',
         completion_gate: {
           condition: 'task.metadata.user_preflight_confirmed === true',
