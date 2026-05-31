@@ -27,7 +27,6 @@ export type Database = {
           lead_id: string
           metadata: Json
           required: boolean
-          stage: Database["public"]["Enums"]["lead_status"]
           status: Database["public"]["Enums"]["action_status"]
           task_order: number | null
           title: string
@@ -46,7 +45,6 @@ export type Database = {
           lead_id: string
           metadata?: Json
           required?: boolean
-          stage: Database["public"]["Enums"]["lead_status"]
           status?: Database["public"]["Enums"]["action_status"]
           task_order?: number | null
           title: string
@@ -65,7 +63,6 @@ export type Database = {
           lead_id?: string
           metadata?: Json
           required?: boolean
-          stage?: Database["public"]["Enums"]["lead_status"]
           status?: Database["public"]["Enums"]["action_status"]
           task_order?: number | null
           title?: string
@@ -302,7 +299,7 @@ export type Database = {
           industry: string | null
           linkedin_url: string | null
           raw_signal_id: string | null
-          status: string
+          status: Database["public"]["Enums"]["lead_status"]
           strategic_analysis: string | null
           strategic_hurdles: string | null
           trigger_alignment: string | null
@@ -323,7 +320,7 @@ export type Database = {
           industry?: string | null
           linkedin_url?: string | null
           raw_signal_id?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["lead_status"]
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
           trigger_alignment?: string | null
@@ -344,7 +341,7 @@ export type Database = {
           industry?: string | null
           linkedin_url?: string | null
           raw_signal_id?: string | null
-          status?: string
+          status?: Database["public"]["Enums"]["lead_status"]
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
           trigger_alignment?: string | null
@@ -525,19 +522,14 @@ export type Database = {
         | "events_meetups"
         | "other"
       lead_status:
-        | "new"
-        | "contacted"
-        | "proposal"
-        | "negotiation"
-        | "won"
-        | "lost"
-        | "signal"
-        | "potential"
         | "discovery"
         | "engaged"
         | "solution_fit"
+        | "proposal"
+        | "negotiation"
         | "close"
-        | "post_close"
+        | "won"
+        | "lost"
       signal_category:
         | "Company News"
         | "Industry Trend"
@@ -716,19 +708,14 @@ export const Constants = {
         "other",
       ],
       lead_status: [
-        "new",
-        "contacted",
-        "proposal",
-        "negotiation",
-        "won",
-        "lost",
-        "signal",
-        "potential",
         "discovery",
         "engaged",
         "solution_fit",
+        "proposal",
+        "negotiation",
         "close",
-        "post_close",
+        "won",
+        "lost",
       ],
       signal_category: [
         "Company News",
