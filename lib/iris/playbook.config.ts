@@ -13,7 +13,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     tasks: [
       {
         id: 'verify_company_details',
-        order: 1, // 🛠️ Explicit configuration order key
+        order: 1,
         title: 'Check company details for {{lead.company_name}}',
         channel: 'internal',
         due_business_days: 1,
@@ -27,7 +27,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'find_key_people',
-        order: 2, // 🛠️ Explicit configuration order key
+        order: 2,
         title: 'Find the right people to reach out to',
         channel: 'internal',
         due_business_days: 1,
@@ -42,7 +42,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'pre_outreach_prep',
-        order: 3, // 🛠️ Explicit configuration order key
+        order: 3,
         title: 'Quick review before first contact',
         channel: 'internal',
         due_business_days: 1,
@@ -57,7 +57,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'send_first_outreach',
-        order: 4, // 🛠️ Explicit configuration order key
+        order: 4,
         title: 'Send your initial outreach message',
         channel: 'auto',
         due_business_days: 2,
@@ -73,7 +73,7 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       },
       {
         id: 'log_discovery_call',
-        order: 5, // 🛠️ Explicit configuration order key
+        order: 5,
         title: 'Have your discovery chat and check for deal fit',
         channel: 'meeting',
         due_business_days: 3,
@@ -92,13 +92,179 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
     exit_blocked_message: 'You need to get a positive response from a contact and verify project fit before advancing past the Discovery stage.'
   },
 
-  // Stubs for later stages
-  engaged: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  solution_fit: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  proposal: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  negotiation: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  close: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  post_close: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  won: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] },
-  lost: { goal: '', entry_message: { template: 'entry_briefing', context_fields: [] }, tasks: [], checkback_rules: [], exit_criteria: [] }
+  engaged: {
+    goal: 'Nurture prospect relationship, answer baseline questions, and secure depth requirements with primary stakeholders.',
+    entry_message: {
+      template: 'entry_briefing',
+      context_fields: ['lead.company_name', 'lead.strategic_analysis']
+    },
+    tasks: [
+      {
+        id: 'nurture_followup',
+        order: 1,
+        title: 'Send relationship nurturing touchpoint',
+        channel: 'internal',
+        due_business_days: 2,
+        required: true,
+        iris_tip: 'Share a relevant point or insight that aligns with your previous discovery sync to maintain momentum.',
+        completion_gate: {
+          condition: 'task.metadata.followup_logged === true',
+          blocked_message: 'Confirm you have dispatched your nurturing follow-up line to advance.'
+        }
+      },
+      {
+        id: 'map_additional_stakeholders',
+        order: 2,
+        title: 'Map core economic decision makers',
+        channel: 'internal',
+        due_business_days: 2,
+        required: false,
+        iris_tip: 'Identify peripheral champions or executive sponsors who will be evaluating your upcoming proposal parameters.'
+      }
+    ],
+    checkback_rules: [],
+    exit_criteria: []
+  },
+
+  solution_fit: {
+    goal: 'Examine product or project scope requirements and validate service alignment boundaries.',
+    entry_message: {
+      template: 'entry_briefing',
+      context_fields: ['lead.company_name', 'lead.strategic_hurdles']
+    },
+    tasks: [
+      {
+        id: 'technical_scoping_review',
+        order: 1,
+        title: 'Conduct scoping requirements breakdown',
+        channel: 'internal',
+        due_business_days: 3,
+        required: true,
+        iris_tip: 'Detail technical constraints, project volume requirements, or creative parameters matching their current systems.',
+        completion_gate: {
+          condition: 'task.metadata.scope_parameters_saved === true',
+          blocked_message: 'Log detailed project scope metrics to formalize solution alignment guidelines.'
+        }
+      }
+    ],
+    checkback_rules: [],
+    exit_criteria: []
+  },
+
+  proposal: {
+    goal: 'Compile the formalized strategic strategy agreement proposal and deliver commercial terms.',
+    entry_message: {
+      template: 'entry_briefing',
+      context_fields: ['lead.company_name', 'lead.business_justification']
+    },
+    tasks: [
+      {
+        id: 'generate_proposal_file',
+        order: 1,
+        title: 'Draft customized strategy proposal proposal',
+        channel: 'internal',
+        due_business_days: 2,
+        required: true,
+        iris_tip: 'Incorporate business alignment justifications and explicit project timelines into your quote framework.',
+        completion_gate: {
+          condition: 'task.metadata.proposal_attached === true',
+          blocked_message: 'Attach or confirm your strategy proposal text to continue.'
+        }
+      },
+      {
+        id: 'deliver_proposal_review',
+        order: 2,
+        title: 'Present proposal deck to client stakeholders',
+        channel: 'meeting',
+        due_business_days: 3,
+        required: true,
+        depends_on: ['generate_proposal_file'],
+        iris_tip: 'Walk key decision makers through pricing parameters, outcomes, and proof profiles.',
+        completion_gate: {
+          condition: 'task.metadata.review_completed === true',
+          blocked_message: 'Complete the review sync with the client team to unlock final closing tracks.'
+        }
+      }
+    ],
+    checkback_rules: [],
+    exit_criteria: []
+  },
+
+  negotiation: {
+    goal: 'Resolve pricing or delivery objections and coordinate contract redline variations.',
+    entry_message: {
+      template: 'entry_briefing',
+      context_fields: ['lead.company_name', 'lead.strategic_hurdles']
+    },
+    tasks: [
+      {
+        id: 'finalize_commercial_terms',
+        order: 1,
+        title: 'Address commercial terms and redlines',
+        channel: 'internal',
+        due_business_days: 3,
+        required: true,
+        iris_tip: 'Adjust final pricing models or delivery parameters based on structural feedback received.',
+        completion_gate: {
+          condition: 'task.metadata.terms_agreed === true',
+          blocked_message: 'Confirm client consensus on commercial parameters to unlock signing paperwork.'
+        }
+      }
+    ],
+    checkback_rules: [],
+    exit_criteria: []
+  },
+
+  close: {
+    goal: 'Finalize agreement execution, determine transaction outcome, and initialize client handovers for won accounts.',
+    entry_message: {
+      template: 'entry_briefing',
+      context_fields: ['lead.company_name', 'lead.deal_timeline']
+    },
+    tasks: [
+      {
+        id: 'execute_paperwork',
+        order: 1,
+        title: 'Finalize formal agreement signing',
+        channel: 'internal',
+        due_business_days: 2,
+        required: true,
+        iris_tip: 'Verify signatures are executed on final contracts before moving to archive tracks.',
+        completion_gate: {
+          condition: 'task.metadata.paperwork_completed === true',
+          blocked_message: 'Confirm that signed documents have been completed or collected.'
+        }
+      },
+      {
+        id: 'determine_outcome',
+        order: 2,
+        title: 'Log final deal resolution state',
+        channel: 'internal',
+        due_business_days: 1,
+        required: true,
+        depends_on: ['execute_paperwork'],
+        iris_tip: 'Log the final resolution of this file to settle metrics ledger values cleanly.',
+        completion_gate: {
+          condition: "task.metadata.deal_outcome === 'won' || task.metadata.deal_outcome === 'lost'",
+          blocked_message: 'Explicitly mark this opportunity outcome track as Won or Lost.'
+        }
+      },
+      {
+        id: 'post_close_handover',
+        order: 3,
+        title: 'Onboarding Handover Summary Checklist',
+        channel: 'internal',
+        due_business_days: 2,
+        required: true,
+        depends_on: ['determine_outcome'],
+        iris_tip: 'If won, compile handover specs and kickoff parameters for onboarding. If lost, this step auto-resolves on save.',
+        completion_gate: {
+          condition: "task.metadata.handover_completed === true || task.metadata.deal_outcome === 'lost'",
+          blocked_message: 'Complete the client onboarding checklist to finalize this file.'
+        }
+      }
+    ],
+    checkback_rules: [],
+    exit_criteria: []
+  }
 };
