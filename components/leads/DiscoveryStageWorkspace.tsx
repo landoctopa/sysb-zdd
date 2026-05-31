@@ -67,20 +67,20 @@ export default function DiscoveryStageWorkspace({
 
   // Determine current active task step dynamically on page load
   useEffect(() => {
-  if (databaseDiscoveryTasks.length > 0 && !hasInitializedExpanded) {
-    const firstPendingTask = databaseDiscoveryTasks.find(t => t.status === 'pending');
-    if (firstPendingTask) {
-      setExpandedTaskId((firstPendingTask.metadata as any)?.task_config_id || null);
-    } else {
-      setExpandedTaskId('log_discovery_call');
+    if (databaseDiscoveryTasks.length > 0 && !hasInitializedExpanded) {
+      const firstPendingTask = databaseDiscoveryTasks.find(t => t.status === 'pending');
+      if (firstPendingTask) {
+        setExpandedTaskId((firstPendingTask.metadata as any)?.task_config_id || null);
+      } else {
+        setExpandedTaskId('log_discovery_call');
+      }
+      setHasInitializedExpanded(true); // 🛠️ FIXED: Added "set" prefix to invoke state setter
     }
-    setHasInitializedExpanded(true); // 🛠️ FIXED: Added "set" prefix to invoke state setter
-  }
-}, [actions, hasInitializedExpanded, databaseDiscoveryTasks]);
+  }, [actions, hasInitializedExpanded, databaseDiscoveryTasks]);
 
   const handleInitializePlaybook = () => {
     if (!discoveryConfig) return;
-    
+
     const payload = discoveryConfig.tasks.map(task => {
       const clearTitle = task.title.replace('{{lead.company_name}}', lead.company_name || 'this company');
       return {
@@ -113,7 +113,7 @@ export default function DiscoveryStageWorkspace({
           onActionCreated(generatedList);
         }
         setExpandedTaskId('verify_company_details');
-      } catch (err) {}
+      } catch (err) { }
     });
   };
 
@@ -144,7 +144,7 @@ export default function DiscoveryStageWorkspace({
           });
           setExpandedTaskId(nextConfigTask ? nextConfigTask.id : null);
         }
-      } catch (err) {}
+      } catch (err) { }
     });
   };
 
@@ -164,7 +164,7 @@ export default function DiscoveryStageWorkspace({
         if (!response.ok) throw new Error('Generation failed');
         const result = await response.json();
         setGeneratedDraft(result);
-      } catch (err) {}
+      } catch (err) { }
     });
   };
 
@@ -203,22 +203,20 @@ export default function DiscoveryStageWorkspace({
         const displayTitle = playbookTask.title.replace('{{lead.company_name}}', lead.company_name || 'this company');
 
         return (
-          <Card 
-            key={dbTask.id} 
-            className={`transition-all duration-200 overflow-hidden ${
-              isExpanded 
-                ? 'bg-white text-slate-900 border-2 border-slate-900 ring-4 ring-slate-900/5 shadow-md' 
-                : isCompleted 
-                ? 'bg-slate-100 border border-slate-200 shadow-sm text-slate-700' 
-                : 'border-border/60 hover:border-border/100 bg-card text-foreground'
-            }`}
+          <Card
+            key={dbTask.id}
+            className={`transition-all duration-200 overflow-hidden ${isExpanded
+                ? 'bg-white text-slate-900 border-2 border-slate-900 ring-4 ring-slate-900/5 shadow-md'
+                : isCompleted
+                  ? 'bg-slate-100 border border-slate-200 shadow-sm text-slate-700'
+                  : 'border-border/60 hover:border-border/100 bg-card text-foreground'
+              }`}
           >
             {/* COMMON EXPANSION TRIGGER CONTAINER */}
             <div
               onClick={() => setExpandedTaskId(isExpanded ? null : configId)}
-              className={`p-3.5 flex items-center justify-between gap-4 cursor-pointer select-none ${
-                isExpanded ? 'hover:bg-slate-50' : isCompleted ? 'hover:bg-slate-200/60' : 'hover:bg-muted/10'
-              }`}
+              className={`p-3.5 flex items-center justify-between gap-4 cursor-pointer select-none ${isExpanded ? 'hover:bg-slate-50' : isCompleted ? 'hover:bg-slate-200/60' : 'hover:bg-muted/10'
+                }`}
             >
               <div className="flex items-center gap-3 min-w-0">
                 {isCompleted ? (
@@ -230,14 +228,14 @@ export default function DiscoveryStageWorkspace({
                   {displayTitle}
                 </span>
               </div>
-              
+
               <Badge variant="outline" className={`text-[9px] h-5 px-2 font-bold uppercase tracking-wider border-none ${isCompleted ? 'bg-emerald-600/10 text-emerald-700' : isExpanded ? 'bg-slate-900 text-white font-black' : 'bg-muted/40 text-muted-foreground'}`}>{isCompleted ? 'Done' : 'Active'}</Badge>
             </div>
 
             {/* DELEGATE ACTIVE UI RENDER ROUTE TO DECOUPLED CHILD */}
             {isExpanded && (
               <div className="p-4 border-t border-slate-200/80 bg-slate-50/50 space-y-4 text-xs animate-fadeIn text-slate-800">
-                
+
                 <div className="flex gap-2.5 leading-relaxed text-slate-600 px-1 font-medium">
                   <HelpCircle className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                   <span>{playbookTask.iris_tip}</span>
@@ -256,7 +254,14 @@ export default function DiscoveryStageWorkspace({
                 )}
 
                 {configId === 'send_first_outreach' && (
-                  <Step4SendOutreach dbTask={dbTask} isAiLoading={isAiLoading} isSaving={isSaving} generatedDraft={generatedDraft} onTriggerAiAction={handleTriggerAiAction} onCompleteTask={handleCompleteTask} />
+                  <Step4SendOutreach
+                    lead={lead}
+                    dbTask={dbTask}
+                    actions={actions} // 🛠️ Added property injection link
+                    isSaving={isSaving}
+                    onActionUpdated={onActionUpdated}
+                    onCompleteTask={handleCompleteTask}
+                  />
                 )}
 
                 {configId === 'log_discovery_call' && (
