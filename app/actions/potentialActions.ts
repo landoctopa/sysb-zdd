@@ -28,6 +28,17 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
 
     const dossier = virtualState.ai_dossier;
 
+    // PRESERVE ORIGINAL SIGNAL CONTEXT: Format a structured metadata entry payload
+    const originalSignalContext = {
+      id: rawSignal.id,
+      title: rawSignal.title || 'Untitled Signal',
+      description: rawSignal.description || '',
+      signal_type: rawSignal.signal_type || 'Company News',
+      published_at: rawSignal.published_at || new Date().toISOString(),
+      company_name: rawSignal.company_name || 'Unknown Company',
+      captured_at: new Date().toISOString()
+    };
+
     // 3. Create the row directly inside the central leads ledger
     const { data: lead, error: leadError } = await supabase
       .from('leads')
@@ -35,12 +46,13 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         user_id: user.id,
         raw_signal_id: signalId,
         company_name: rawSignal.company_name || 'Unknown Company',
-        status: 'discovery', // 🛠️ FIX: Initialize directly as 'discovery' to match your updated PipelineHeader
+        status: 'discovery',
         hotness_score: dossier.hotness_score || 0,
         
-        // Deep-freeze the contextual research and triage checks
+        // Deep-freeze contextual research, triage check histories, and the lead signals feed
         ai_coach_state: {
           ai_dossier: dossier,
+          lead_signals: [originalSignalContext], // Lead Listening historical tracking engine initiated
           stage_history: {
             signal: {
               completed_at: new Date().toISOString(),
@@ -69,10 +81,10 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
       .insert([
         {
           lead_id: lead.id,
-          stage: 'discovery',             // 🛠️ FIX: Track baseline logs directly inside discovery
-          type: 'notification',           // Polymorphic type
-          channel: 'iris',                // Driven by Iris
-          status: 'completed',            // Instantly marked as historical timeline item
+          stage: 'discovery',
+          type: 'notification',
+          channel: 'iris',
+          status: 'completed',
           title: 'Iris Fit Justification briefing',
           body: dossier.business_justification || 'No justification provided.',
           due_date: new Date().toISOString(),
@@ -80,7 +92,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
         },
         {
           lead_id: lead.id,
-          stage: 'discovery',             // 🛠️ FIX: Track baseline logs directly inside discovery
+          stage: 'discovery',
           type: 'notification',
           channel: 'iris',
           status: 'completed',
