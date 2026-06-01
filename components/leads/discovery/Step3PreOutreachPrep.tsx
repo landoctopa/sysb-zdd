@@ -45,16 +45,44 @@ export default function Step3PreOutreachPrep({
 
   // Safely evaluate and parse cached target array lists from action metadata records
   let parsedPeopleList: PrioritizedPerson[] = [];
-  try {
-    if (currentMeta.people_analysis && Array.isArray(currentMeta.people_analysis)) {
+try {
+  if (currentMeta.people_analysis) {
+    if (Array.isArray(currentMeta.people_analysis)) {
       parsedPeopleList = currentMeta.people_analysis;
-    } else if (currentMeta.people_analysis && typeof currentMeta.people_analysis === 'string') {
-      const parsed = JSON.parse(currentMeta.people_analysis);
-      parsedPeopleList = parsed.prioritized_people || parsed;
+    } else if (typeof currentMeta.people_analysis === 'object') {
+      // Handles cases where it's already an object but nested
+      const obj = currentMeta.people_analysis as any;
+      parsedPeopleList = obj.prioritized_people || obj;
+    } else if (typeof currentMeta.people_analysis === 'string') {
+      // 🧼 CLEANUP UTILITY: Strip out code block fences, trailing junk, or raw commentary
+      let rawString = currentMeta.people_analysis.trim();
+      
+      // Remove leading/trailing markdown code blocks if present
+      rawString = rawString.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      
+      // Extract just the inner JSON object boundary if the AI added conversational prefix text
+      const jsonBoundaryMatch = rawString.match(/[\{\[]([\s\S]*)[\}\]]/);
+      if (jsonBoundaryMatch) {
+        rawString = jsonBoundaryMatch[0];
+      }
+
+      const parsed = JSON.parse(rawString);
+      parsedPeopleList = parsed.prioritized_people || (Array.isArray(parsed) ? parsed : []);
     }
-  } catch (e) {
-    console.error('Failed to parse cached list logic array context:', e);
   }
+} catch (e) {
+  console.error('Failed to parse cached list logic array context safely:', e);
+  // Fallback boundary: Create a clean single entry if the AI returned completely raw unparseable prose
+  if (typeof currentMeta.people_analysis === 'string' && currentMeta.people_analysis.trim()) {
+    parsedPeopleList = [{
+      contact_id: contacts[0]?.id || 'unknown',
+      contact_name: contacts[0]?.name || 'Target Lead Contact',
+      priority: 1,
+      justification: 'Reviewing raw notes...',
+      approach_strategy: currentMeta.people_analysis // Displays the raw text gracefully instead of crashing
+    }];
+  }
+}
 
   const hasValidAnalysis = parsedPeopleList.length > 0;
 
