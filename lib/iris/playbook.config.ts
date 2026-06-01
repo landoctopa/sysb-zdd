@@ -74,16 +74,16 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
       {
         id: 'log_discovery_call',
         order: 5,
-        title: 'Have your discovery chat and check for deal fit',
+        title: 'Track initial response & secure conversational fit',
         channel: 'meeting',
         due_business_days: 3,
         required: true,
         depends_on: ['send_first_outreach'],
-        iris_tip: 'Listen to their challenges. Ask about their goals, who makes final choices, when they want to start, and what kind of budget is available.',
-        integrations: ['google_calendar'],
+        iris_tip: 'Note down whether they responded and adjust contact statuses accordingly. Getting a positive reply unlocks stage advancement.',
         completion_gate: {
-          condition: 'task.metadata.score !== undefined && task.metadata.financial_impact !== undefined',
-          blocked_message: 'Log your conversation details and note down the financial impact of their problem to save your work.',
+          // Re-mapped dynamically to verify contact row status changes via condition-evaluator
+          condition: 'lead.contacts.some(c => c.status === "engaged")',
+          blocked_message: 'Log a successful response outcome and set a saved contact status to Engaged to close discovery.',
         }
       }
     ],

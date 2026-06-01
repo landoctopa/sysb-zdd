@@ -3,35 +3,34 @@ import { atom } from 'nanostores';
 import { Database } from '../database.types';
 import { toast } from 'sonner';
 
-// Re-export all row types for convenience
+// Re-export core row types for convenience
 export type LeadRow = Database['public']['Tables']['leads']['Row'];
 export type ContactRow = Database['public']['Tables']['contacts']['Row'];
-export type TaskRow = Database['public']['Tables']['tasks']['Row'];
+export type ActionRow = Database['public']['Tables']['actions']['Row'];
 export type CoachLogRow = Database['public']['Tables']['ai_coach_logs']['Row'];
-export type CommunicationRow = Database['public']['Tables']['communications']['Row'];
 
 export type LeadStatus = LeadRow['status'];
+export type ActionStatus = Database['public']['Enums']['action_status'];
 
 // --- Atoms ---
 export const $leadsList = atom<LeadRow[]>([]);
 export const $activeLead = atom<LeadRow | null>(null);
 export const $activeContacts = atom<ContactRow[]>([]);
-export const $activeTasks = atom<TaskRow[]>([]);
+export const $activeActions = atom<ActionRow[]>([]); // Unified table store
 export const $activeCoachLogs = atom<CoachLogRow[]>([]);
-export const $activeCommunications = atom<CommunicationRow[]>([]);
 export const $isSyncing = atom<boolean>(false);
 export const $uiAddContactModalOpen = atom<boolean>(false);
 
-// --- Helper: Sync Fresh Lead State Tasks (Guarantees background Iris entries reflect instantly) ---
-export async function refreshActiveTasks(leadId: string) {
+// --- Helper: Sync Fresh Lead Playbook Actions (Guarantees background Iris entries reflect instantly) ---
+export async function refreshActiveActions(leadId: string) {
   try {
-    const res = await fetch(`/api/leads/${leadId}/tasks`);
+    const res = await fetch(`/api/leads/${leadId}/tasks`); // Points to synced Playbook task retrieval
     if (res.ok) {
-      const freshTasks = await res.json();
-      $activeTasks.set(freshTasks);
+      const freshActions = await res.json();
+      $activeActions.set(freshActions);
     }
   } catch (err) {
-    console.error('Failed to sync tasks collection from database', err);
+    console.error('Failed to sync actions ledger collection from database', err);
   }
 }
 
@@ -50,7 +49,6 @@ export async function updateLeadMetadata(leadId: string, answers: Record<string,
     
     if (!res.ok) throw new Error('Failed to update metadata');
 
-    // DB update succeeded -> Compute and update state using server-verified values
     const updatedState = {
       ...(lead.ai_coach_state as any || {}),
       answers: {
@@ -84,14 +82,13 @@ export async function updateLeadStatus(newStatus: LeadStatus) {
     
     if (!res.ok) throw new Error('Sync failed');
     
-    // Server processed successfully -> Update store with live changes
     $activeLead.set({ ...lead, status: newStatus });
     $leadsList.set(
       currentList.map(l => l.id === lead.id ? { ...l, status: newStatus } : l)
     );
     
     // Cascade re-fetch: Pipeline changes cause Iris to append background tasks
-    await refreshActiveTasks(lead.id);
+    await refreshActiveActions(lead.id);
     toast.success(`Stage updated to ${newStatus}`);
   } catch (error) {
     toast.error('Failed to update stage in database.');
@@ -100,101 +97,78 @@ export async function updateLeadStatus(newStatus: LeadStatus) {
   }
 }
 
-// --- Action: Add communication (DB-First) ---
-export async function addCommunication(leadId: string, commData: Partial<CommunicationRow>) {
+// --- Action: Create New Unified Action (Handles tasks, notes, communications via API) ---
+export async function addLeadAction(leadId: string, actionData: Partial<ActionRow>) {
   $isSyncing.set(true);
   try {
-    const res = await fetch(`/api/leads/${leadId}/communications`, {
+    const res = await fetch(`/api/actions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(commData),
+      body: JSON.stringify({ lead_id: leadId, ...actionData }),
     });
     
-    if (!res.ok) throw new Error('Database rejected communication log entry');
+    if (!res.ok) throw new Error('Database rejected action creation payload');
     
-    // Core Fix: Insert the real database row object containing the verified server UUID
-    const verifiedComm = await res.json();
-    const currentComms = $activeCommunications.get();
-    $activeCommunications.set([verifiedComm, ...currentComms]);
+    const verifiedAction = await res.json();
+    const currentActions = $activeActions.get();
+    $activeActions.set([verifiedAction, ...currentActions]);
     
-    return verifiedComm;
+    return verifiedAction;
   } catch (err) {
-    toast.error('Failed to log communication to database');
+    toast.error(`Failed to log ${actionData.type || 'action'}`);
     throw err;
   } finally {
     $isSyncing.set(false);
   }
 }
 
-// --- Action: Add task (DB-First) ---
-export async function addTask(leadId: string, taskData: Partial<TaskRow>) {
-  $isSyncing.set(true);
-  try {
-    const res = await fetch(`/api/leads/${leadId}/tasks`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(taskData),
-    });
-    
-    if (!res.ok) throw new Error('Database rejected task insertion payload');
-    
-    // Core Fix: Populate UI with the real row containing the verified database constraints
-    const verifiedTask = await res.json();
-    const currentTasks = $activeTasks.get();
-    $activeTasks.set([verifiedTask, ...currentTasks]);
-    
-    return verifiedTask;
-  } catch (err) {
-    toast.error('Failed to save task');
-    throw err;
-  } finally {
-    $isSyncing.set(false);
-  }
-}
+// --- Action: Toggle Action Completion State (DB-First) ---
+export async function toggleActionStatus(actionId: string, completed: boolean) {
+  const currentActions = $activeActions.get();
+  const action = currentActions.find(a => a.id === actionId);
+  if (!action) return;
 
-// --- Action: Toggle task completion (DB-First) ---
-export async function toggleTaskCompletion(taskId: string, completed: boolean) {
-  const currentTasks = $activeTasks.get();
-  const task = currentTasks.find(t => t.id === taskId);
-  if (!task) return;
-
-  const newStatus: TaskRow['status'] = completed ? 'completed' : 'pending';
+  const newStatus: ActionStatus = completed ? 'completed' : 'pending';
   $isSyncing.set(true);
 
   try {
-    const res = await fetch(`/api/tasks/${taskId}`, {
+    // Hits the centralized actions management endpoint
+    const res = await fetch(`/api/tasks/${actionId}`, { 
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status: newStatus }),
     });
     
-    if (!res.ok) throw new Error('Failed to patch server task state');
+    if (!res.ok) throw new Error('Failed to patch server action state');
     
-    // Update store only after database confirms success
-    $activeTasks.set(currentTasks.map(t =>
-      t.id === taskId ? { ...t, status: newStatus, completed_at: completed ? new Date().toISOString() : null } : t
+    $activeActions.set(currentActions.map(a =>
+      a.id === actionId ? { 
+        ...a, 
+        status: newStatus, 
+        completed_at: completed ? new Date().toISOString() : null 
+      } : a
     ));
     
-    toast.success(completed ? 'Task completed' : 'Task reopened');
+    toast.success(completed ? 'Marked complete' : 'Reopened successfully');
   } catch (err) {
-    toast.error('Failed to update task state in database');
+    toast.error('Failed to update item state in database');
   } finally {
     $isSyncing.set(false);
   }
 }
 
-// --- Iris Action: Complete Core Task (DB-First) ---
-export async function completeTaskOptimistic(taskId: string, taskConfigId: string) {
-  const currentTasks = $activeTasks.get();
-  const task = currentTasks.find(t => t.id === taskId);
-  if (!task) return;
+// --- Iris Action: Complete Core Playbook Task Gate (DB-First) ---
+export async function completeTaskOptimistic(actionId: string, taskConfigId: string) {
+  const currentActions = $activeActions.get();
+  const action = currentActions.find(a => a.id === actionId);
+  if (!action) return;
 
   $isSyncing.set(true);
   try {
     const res = await fetch(`/api/iris/tasks/complete`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ leadId: task.lead_id, taskId, taskConfigId })
+      body: JSON.stringify({ leadId: action.lead_id, taskId: actionId, taskConfigId })
     });
     
     const result = await res.json();
@@ -202,36 +176,43 @@ export async function completeTaskOptimistic(taskId: string, taskConfigId: strin
     if (!res.ok || (!result.ok && result.message)) {
       toast.error(result.message || 'Iris validation check failed');
     } else {
-      // Cascade re-fetch: Iris unlocks hidden steps or shifts properties upon task resolution
-      await refreshActiveTasks(task.lead_id);
+      // Cascade re-fetch: Playbook execution recalculates your new dependent task ledger stack
+      await refreshActiveActions(action.lead_id);
       toast.success('Task completed');
     }
   } catch (err) {
-    toast.error('Server execution failed');
+    toast.error('Server validation execution failed');
   } finally {
     $isSyncing.set(false);
   }
 }
 
-// --- Iris Action: Approve Artifact (DB-First) ---
-export async function approveTaskOptimistic(taskId: string) {
+// --- Iris Action: Approve Core Generation Artifact (DB-First) ---
+export async function approveTaskOptimistic(actionId: string) {
   const lead = $activeLead.get();
   if (!lead) return;
-  const currentTasks = $activeTasks.get();
+  const currentActions = $activeActions.get();
 
   $isSyncing.set(true);
   try {
     const res = await fetch(`/api/iris/tasks/approve`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ leadId: lead.id, taskId })
+      body: JSON.stringify({ leadId: lead.id, taskId: actionId })
     });
 
     if (!res.ok) throw new Error('Artifact approval failed on backend');
     
-    // Update client UI container inline after server validation passes
-    $activeTasks.set(currentTasks.map(t => t.id === taskId ? { ...t, user_approved: true } : t));
-    toast.success('Approved');
+    // Update structural user_approved flag stored in metadata JSONB safely
+    $activeActions.set(currentActions.map(a => 
+      a.id === actionId ? { 
+        ...a, 
+        metadata: typeof a.metadata === 'object' && a.metadata !== null 
+          ? { ...a.metadata, user_approved: true } 
+          : { user_approved: true }
+      } : a
+    ));
+    toast.success('Approved copy artifact');
   } catch {
     toast.error('Server approval sequence failed');
   } finally {
@@ -254,7 +235,6 @@ export async function submitFeedbackOptimistic(leadId: string, taskConfigId: str
     if (!res.ok) throw new Error('Server rejected feedback submission payload');
     const result = await res.json();
     
-    // Deep-merge state variations safely inside user space after database commit completes
     if (lead) {
       const parts = savesTo.split('.');
       const newState = JSON.parse(JSON.stringify(lead.ai_coach_state || {}));
@@ -270,11 +250,18 @@ export async function submitFeedbackOptimistic(leadId: string, taskConfigId: str
       $activeLead.set({ ...lead, ai_coach_state: newState });
     }
     
-    // Sync related active tasks tasks layout
-    const currentTasks = $activeTasks.get();
-    $activeTasks.set(currentTasks.map(t => 
-      t.task_config_id === taskConfigId ? { ...t, feedback_submitted: true, feedback_answers: answers } : t
-    ));
+    // Track feedback completion status updates directly on action items matching config definitions
+    const currentActions = $activeActions.get();
+    $activeActions.set(currentActions.map(a => {
+      const meta = (a.metadata as Record<string, any>) || {};
+      if (meta.task_config_id === taskConfigId) {
+        return {
+          ...a,
+          metadata: { ...meta, feedback_submitted: true, feedback_answers: answers }
+        };
+      }
+      return a;
+    }));
 
     toast.success('Feedback saved');
     return result;
@@ -287,7 +274,7 @@ export async function submitFeedbackOptimistic(leadId: string, taskConfigId: str
 }
 
 // --- Iris Action: Lock Down & Deploy Stage Playbook (DB-First) ---
-export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial<TaskRow>[]) {
+export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial<ActionRow>[]) {
   $isSyncing.set(true);
   try {
     const res = await fetch(`/api/iris/tasks/confirm`, {
@@ -298,8 +285,7 @@ export async function confirmStageTasksOptimistic(leadId: string, tasks: Partial
 
     if (!res.ok) throw new Error('Playbook confirmation failed on backend');
     
-    // Fetch live task database records to completely hydrate the workspace
-    await refreshActiveTasks(leadId);
+    await refreshActiveActions(leadId);
     toast.success('Tasks unlocked successfully');
   } catch {
     toast.error('Failed to register tasks to database');
@@ -322,7 +308,6 @@ export async function persistAiDraftOptimistic(leadId: string, actionKey: string
     
     if (!res.ok) throw new Error('Draft caching failed');
 
-    // Merge into local active client state once successfully saved to database
     const state = JSON.parse(JSON.stringify(lead.ai_coach_state || {}));
     if (!state.ai_drafts) state.ai_drafts = {};
     state.ai_drafts[actionKey] = draftPayload;

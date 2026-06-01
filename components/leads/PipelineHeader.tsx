@@ -18,6 +18,7 @@ import {
   AlertTriangle, 
   ChevronRight, 
   CheckCircle2,
+  XCircle,
   Loader2,
   ExternalLink
 } from 'lucide-react';
@@ -36,14 +37,14 @@ interface PipelineHeaderProps {
   setLead: React.Dispatch<React.SetStateAction<Lead>>;
 }
 
-const STAGES: { value: LeadStage; label: string; desc: string }[] = [
+// 6 Progressive Active Tracks
+const ACTIVE_STAGES: { value: LeadStage; label: string; desc: string }[] = [
   { value: 'discovery', label: '1. Discovery', desc: 'Research & Chat' },
   { value: 'engaged', label: '2. Engaged', desc: 'Active Talk' },
   { value: 'solution_fit', label: '3. Value Fit', desc: 'Solution Matching' },
   { value: 'proposal', label: '4. Proposal', desc: 'Price Offered' },
   { value: 'negotiation', label: '5. Negotiate', desc: 'Reviewing Terms' },
-  { value: 'close', label: '6. Close', desc: 'Final Verdict' },
-  { value: 'post_close', label: '8. Handoff', desc: 'Getting Started' }
+  { value: 'close', label: '6. Close', desc: 'Final Verdict' }
 ];
 
 export default function PipelineHeader({ lead, actions, contacts, setLead }: PipelineHeaderProps) {
@@ -58,8 +59,10 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
   const hasTwoContacts = contacts.length >= 2;
   const isQualified = currentFitScore >= 8 && hasTwoContacts;
 
-  const currentStageIndex = STAGES.findIndex((s) => s.value === lead.status);
-  const nextStageObj = STAGES[currentStageIndex + 1];
+  // Determine if lead is inside terminal archive loops
+  const isTerminal = lead.status === 'won' || lead.status === 'lost';
+  const currentStageIndex = ACTIVE_STAGES.findIndex((s) => s.value === lead.status);
+  const nextStageObj = !isTerminal ? ACTIVE_STAGES[currentStageIndex + 1] : null;
 
   const handleAdvanceStage = (forced = false) => {
     if (!nextStageObj) return;
@@ -68,7 +71,8 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
 
     startTransition(async () => {
       try {
-        const response = await fetch(`/api/leads/${lead.id}`, {
+        // Enforce update utilizing your manual pipeline status override endpoint
+        const response = await fetch(`/api/leads/${lead.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -101,9 +105,7 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
   };
 
   return (
-    /* 🛠️ VISUAL REFACTOR: Completely transparent container background layout wrapper */
     <div className="p-0 pb-2 space-y-5">
-      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-2.5 bg-primary/10 text-primary rounded-xl border border-primary/20 shrink-0 shadow-sm">
@@ -114,8 +116,17 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
               <h1 className="text-2xl font-black tracking-tight text-foreground">
                 {lead.company_name || 'Unknown Company'}
               </h1>
-              <Badge variant="secondary" className="bg-muted text-muted-foreground text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-md border border-border/60">
-                Phase {currentStageIndex + 1}: {STAGES[currentStageIndex]?.desc || lead.status}
+              <Badge 
+                variant="secondary" 
+                className={`text-[10px] uppercase font-extrabold tracking-wider px-2 py-0.5 rounded-md border ${
+                  lead.status === 'won' 
+                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
+                    : lead.status === 'lost'
+                    ? 'bg-destructive/10 text-destructive border-destructive/20'
+                    : 'bg-muted text-muted-foreground border-border/60'
+                }`}
+              >
+                {isTerminal ? `Archive: ${lead.status}` : `Phase ${currentStageIndex + 1}: ${ACTIVE_STAGES[currentStageIndex]?.desc || lead.status}`}
               </Badge>
             </div>
             
@@ -136,7 +147,6 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
           </div>
         </div>
 
-        {/* Floating action pill indicators */}
         <div className="flex items-center gap-5 bg-muted/40 p-2.5 rounded-xl border border-border/40 self-start md:self-auto shadow-sm">
           <div className="text-left space-y-0.5 px-1.5">
             <span className="text-[10px] font-bold text-muted-foreground uppercase block tracking-wider flex items-center gap-1">
@@ -164,19 +174,27 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
                 </>
               )}
             </Button>
-          ) : (
+          ) : lead.status === 'won' ? (
             <div className="text-xs font-bold text-emerald-600 bg-emerald-500/10 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-emerald-500/20">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Final Stage Reached
+              <CheckCircle2 className="h-3.5 w-3.5" /> Deal Won Portfolio
+            </div>
+          ) : lead.status === 'lost' ? (
+            <div className="text-xs font-bold text-destructive bg-destructive/10 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-destructive/20">
+              <XCircle className="h-3.5 w-3.5" /> Deal Lost Archive
+            </div>
+          ) : (
+            <div className="text-xs font-bold text-amber-600 bg-amber-500/10 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-amber-500/20">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Awaiting Close Decision
             </div>
           )}
         </div>
       </div>
 
-      {/* Progress Map Horizontal Flow Layout */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 pt-2 border-t border-border/40">
-        {STAGES.map((stg, index) => {
+      {/* Progress Map Horizontal Flow Layout (Strictly 6 progressive tracks) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-2 border-t border-border/40">
+        {ACTIVE_STAGES.map((stg, index) => {
           const isCurrent = lead.status === stg.value;
-          const isPast = index < currentStageIndex;
+          const isPast = !isTerminal && index < currentStageIndex;
 
           return (
             <div
@@ -235,7 +253,6 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }

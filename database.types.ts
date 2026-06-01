@@ -143,7 +143,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           role: string | null
-          status: string | null
+          status: Database["public"]["Enums"]["contact_status"]
           updated_at: string
         }
         Insert: {
@@ -158,7 +158,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           role?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["contact_status"]
           updated_at?: string
         }
         Update: {
@@ -173,7 +173,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           role?: string | null
-          status?: string | null
+          status?: Database["public"]["Enums"]["contact_status"]
           updated_at?: string
         }
         Relationships: [
@@ -509,6 +509,7 @@ export type Database = {
         | "stage_exit"
       communication_channel: "email" | "call" | "meeting" | "linkedin" | "other"
       communication_direction: "outbound" | "inbound"
+      contact_status: "identified" | "engaged" | "rejected" | "unresponsive"
       event_category_enum:
         | "launch"
         | "funding"
@@ -694,6 +695,7 @@ export const Constants = {
       ],
       communication_channel: ["email", "call", "meeting", "linkedin", "other"],
       communication_direction: ["outbound", "inbound"],
+      contact_status: ["identified", "engaged", "rejected", "unresponsive"],
       event_category_enum: [
         "launch",
         "funding",
