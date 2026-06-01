@@ -91,20 +91,60 @@ export default function LeadWorkbenchClient({ initialLead, initialActions, initi
             </div>
 
             <TabsContent value="workspace" className="space-y-4 mt-4 animate-fadeIn">
+              {/* Discovery Stage Workspace */}
               {lead.status === 'discovery' && (
                 <DiscoveryStageWorkspace
                   lead={lead}
                   actions={actions}
-                  contacts={contacts} // Must be managed via React useState state hooks in this component
+                  contacts={contacts}
                   onActionUpdated={handleActionUpdated}
                   onActionCreated={handleActionCreated}
                   onLeadUpdated={setLead}
-
-                  // 🛠️ FIX: Reactive client-state updates to avoid manual browser refreshes
                   onContactCreated={(newContact) => setContacts((prev) => [...prev, newContact])}
                   onContactUpdated={(updatedContact) => setContacts((prev) => prev.map(c => c.id === updatedContact.id ? updatedContact : c))}
                   onContactDeleted={(id) => setContacts((prev) => prev.filter(c => c.id !== id))}
                 />
+              )}
+
+              {/* Placeholder blocks for downstream milestones to keep layout compilation safe */}
+              {lead.status === 'engaged' && (
+                <div className="bg-white p-6 border border-slate-200 rounded-xl shadow-sm text-center font-medium text-slate-500">
+                  Engaged Stage Workspace active. Ready to coordinate stakeholder mapping.
+                </div>
+              )}
+
+              {lead.status === 'solution_fit' && (
+                <div className="bg-white p-6 border border-slate-200 rounded-xl shadow-sm text-center font-medium text-slate-500">
+                  Solution Fit Workspace active. Technical requirements tracking engine ready.
+                </div>
+              )}
+
+              {lead.status === 'proposal' && (
+                <div className="bg-white p-6 border border-slate-200 rounded-xl shadow-sm text-center font-medium text-slate-500">
+                  Proposal Phase Workspace active. Commercial quote tracking enabled.
+                </div>
+              )}
+
+              {lead.status === 'negotiation' && (
+                <div className="bg-white p-6 border border-slate-200 rounded-xl shadow-sm text-center font-medium text-slate-500">
+                  Negotiation Phase Workspace active. Contract redline monitoring active.
+                </div>
+              )}
+
+              {lead.status === 'close' && (
+                <div className="bg-white p-6 border border-slate-200 rounded-xl shadow-sm text-center font-medium text-slate-500">
+                  Closing Phase Workspace active. Contract execution and binary outcome logs ready.
+                </div>
+              )}
+
+              {/* Terminal States Guardrail View */}
+              {(lead.status === 'won' || lead.status === 'lost') && (
+                <div className={`p-6 border rounded-xl shadow-sm text-center font-bold uppercase tracking-wider text-xs ${lead.status === 'won'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-rose-50 border-rose-200 text-rose-700'
+                  }`}>
+                  This opportunity has been closed and archived as a Deal {lead.status === 'won' ? 'Win' : 'Loss'}.
+                </div>
               )}
 
               <NotesWidget
