@@ -7,13 +7,13 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { 
-  UserPlus, 
-  Mail, 
-  Phone, 
-  Smile, 
-  XCircle, 
-  Loader2, 
+import {
+  UserPlus,
+  Mail,
+  Phone,
+  Smile,
+  XCircle,
+  Loader2,
   ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -41,7 +41,7 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
   const [newLinkedin, setNewLinkedin] = useState('');
   const [likes, setLikes] = useState('');
   const [dislikes, setDislikes] = useState('');
-  
+
   // 🛠️ NEW ADDITION: Explicit user/AI driven toggle state instead of hardcoded strings
   const [isDecisionMaker, setIsDecisionMaker] = useState(false);
 
@@ -62,7 +62,7 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
 
         setContacts(prev => prev.map(c => c.id === contactId ? updatedContact : c));
         toast.success('Contact profile updated successfully!', { id: toastId });
-        
+
         // Tells the background router to refresh server layout files so exit gates stay in sync
         router.refresh();
       } catch (err) {
@@ -122,17 +122,17 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
 
         setContacts(prev => [...prev, newlyCreated]);
         toast.success(`${newlyCreated.name} is now saved!`, { id: toastId });
-        
+
         // Reset inputs and close forms cleanly
-        setNewName(''); 
-        setNewRole(''); 
-        setNewEmail(''); 
-        setNewPhone(''); 
-        setNewLinkedin(''); 
-        setLikes(''); 
+        setNewName('');
+        setNewRole('');
+        setNewEmail('');
+        setNewPhone('');
+        setNewLinkedin('');
+        setLikes('');
         setDislikes('');
         setIsDecisionMaker(false); // 🛠️ NEW ADDITION: Clear explicit checker state
-        
+
         router.refresh();
       } catch (err) {
         toast.error('Failed to create contact track.', { id: toastId });
@@ -142,7 +142,7 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      
+
       {/* LEFT AREA: CURRENT DIRECTORY LIST OF CARDS */}
       <div className="lg:col-span-8 space-y-4">
         {contacts.length === 0 ? (
@@ -158,37 +158,36 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
             return (
               <Card key={person.id} className="border border-border/60 p-4 shadow-sm relative bg-card animate-fadeIn text-xs">
                 <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
-                  
+
                   {/* DETAIL WRAPPER */}
                   <div className="space-y-3 min-w-0 flex-1">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-bold text-foreground tracking-tight">{person.name}</span>
-                        
+
                         {/* 🛠️ NEW ADDITION: Explicit Decision Maker Highlight Badge Tag */}
                         {person.is_decision_maker && (
                           <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[9px] font-bold px-1.5 py-0">
                             Decision Maker
                           </Badge>
                         )}
-                        
+
                         {/* Dynamic Relationship Status Toggles */}
                         <div className="flex items-center bg-muted/60 p-0.5 rounded-md border border-border/40 ml-1">
-                          {(['discovered', 'reached_out', 'engaged'] as const).map((st) => {
+                          {(['identified', 'engaged', 'rejected', 'unresponsive'] as const).map((st) => {
                             const isCurrent = person.status === st;
-                            const labelMap = { discovered: 'Found', reached_out: 'Contacted', engaged: 'Engaged' };
+
                             return (
                               <button
                                 key={st}
                                 type="button"
                                 onClick={() => handleUpdateContact(person.id, { status: st })}
-                                className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight transition-all ${
-                                  isCurrent 
-                                    ? 'bg-background text-foreground shadow-sm font-extrabold border border-border/20' 
-                                    : 'text-muted-foreground/60 hover:text-foreground'
-                                }`}
+                                className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight transition-all ${isCurrent
+                                    ? 'bg-slate-900 text-white font-extrabold border border-slate-900'
+                                    : 'bg-background text-muted-foreground hover:text-slate-900 border border-border/20'
+                                  }`}
                               >
-                                {labelMap[st]}
+                                {st.replace('_', ' ')}
                               </button>
                             );
                           })}
@@ -275,8 +274,8 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
 
             {/* 🛠️ NEW ADDITION: Clean inline user-driven Decision Maker checkbox input */}
             <div className="flex items-center gap-2.5 p-2.5 bg-muted/30 border border-border/40 rounded-lg select-none mt-1">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 id="is_decision_maker_input"
                 checked={isDecisionMaker}
                 onChange={(e) => setIsDecisionMaker(e.target.checked)}
@@ -291,7 +290,7 @@ export default function ContactsDirectoryClient({ leadId, currentStage, initialC
             <div className="space-y-1 pt-1 border-t border-border/40">
               <label className="font-bold text-muted-foreground text-[10px] uppercase tracking-wider block mb-0.5">Relationship Builders (Optional)</label>
               <span className="text-[10px] text-muted-foreground block mb-1.5 leading-tight">Separate entries with standard commas.</span>
-              
+
               <div className="space-y-2">
                 <div>
                   <label className="text-[10px] text-muted-foreground font-medium block mb-0.5">Likes / Communication Preferences</label>
