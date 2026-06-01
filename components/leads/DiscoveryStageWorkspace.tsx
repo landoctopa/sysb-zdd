@@ -11,6 +11,7 @@ import { Database } from '@/database.types';
 // Import decoupled modals
 import CompanyDetailsWidget from './widgets/CompanyDetailsWidget';
 import ContactFormWidget from './widgets/ContactFormWidget';
+import PreOutreachPrepWidget from './widgets/PreOutreachPrepWidget';
 
 // 🛠️ NEW IMPORTS: Decoupled step workspace subcomponents
 import Step1VerifyCompany from './discovery/Step1VerifyCompany';
@@ -53,6 +54,7 @@ export default function DiscoveryStageWorkspace({
 
   const [isCompanyWidgetOpen, setIsCompanyWidgetOpen] = useState(false);
   const [isContactWidgetOpen, setIsContactWidgetOpen] = useState(false);
+  const [isPrepWidgetOpen, setIsPrepWidgetOpen] = useState(false);
   const [selectedEditContact, setSelectedEditContact] = useState<Contact | null>(null);
 
   const [isAiLoading, startAiTransition] = useTransition();
@@ -62,13 +64,13 @@ export default function DiscoveryStageWorkspace({
   const discoveryConfig = IRIS_PLAYBOOK.discovery;
 
   // Filter and sort tasks from your unified polymorphic actions ledger
-const databaseDiscoveryTasks = actions
-  .filter((a) => {
-    const meta = (a.metadata as Record<string, any>) || {};
-    // Verifies the structural type and ensures it is bound to a playbook config task ID
-    return a.type === 'task' && typeof meta.task_config_id === 'string';
-  })
-  .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
+  const databaseDiscoveryTasks = actions
+    .filter((a) => {
+      const meta = (a.metadata as Record<string, any>) || {};
+      // Verifies the structural type and ensures it is bound to a playbook config task ID
+      return a.type === 'task' && typeof meta.task_config_id === 'string';
+    })
+    .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
 
   // Determine current active task step dynamically on page load
   useEffect(() => {
@@ -247,15 +249,37 @@ const databaseDiscoveryTasks = actions
                 </div>
 
                 {configId === 'verify_company_details' && (
-                  <Step1VerifyCompany lead={lead} dbTask={dbTask} isSaving={isSaving} onOpenWidget={() => setIsCompanyWidgetOpen(true)} onCompleteTask={handleCompleteTask} />
+                  <Step1VerifyCompany
+                    lead={lead}
+                    dbTask={dbTask}
+                    isSaving={isSaving}
+                    onOpenWidget={() => setIsCompanyWidgetOpen(true)}
+                    onCompleteTask={handleCompleteTask}
+                  />
                 )}
 
                 {configId === 'find_key_people' && (
-                  <Step2FindPeople dbTask={dbTask} contacts={contacts} isSaving={isSaving} onAddPerson={handleOpenAddContact} onEditPerson={handleOpenEditContact} onDeletePerson={onContactDeleted} onCompleteTask={handleCompleteTask} />
+                  <Step2FindPeople
+                    dbTask={dbTask}
+                    contacts={contacts}
+                    isSaving={isSaving}
+                    onAddPerson={handleOpenAddContact}
+                    onEditPerson={handleOpenEditContact}
+                    onDeletePerson={onContactDeleted}
+                    onCompleteTask={handleCompleteTask}
+                  />
                 )}
 
                 {configId === 'pre_outreach_prep' && (
-                  <Step3PreOutreachPrep lead={lead} dbTask={dbTask} contacts={contacts} isSaving={isSaving} onActionUpdated={onActionUpdated} onCompleteTask={handleCompleteTask} />
+                  <Step3PreOutreachPrep
+                    lead={lead}
+                    dbTask={dbTask}
+                    contacts={contacts}
+                    isSaving={isSaving}
+                    onOpenPrepWidget={() => setIsPrepWidgetOpen(true)}
+                    onActionUpdated={onActionUpdated}
+                    onCompleteTask={handleCompleteTask}
+                  />
                 )}
 
                 {configId === 'send_first_outreach' && (
@@ -290,7 +314,14 @@ const databaseDiscoveryTasks = actions
 
       <CompanyDetailsWidget lead={lead} isOpen={isCompanyWidgetOpen} onClose={() => setIsCompanyWidgetOpen(false)} onSaveSuccess={(updatedLead) => onLeadUpdated(updatedLead)} />
       <ContactFormWidget lead={lead} contact={selectedEditContact} isOpen={isContactWidgetOpen} onClose={() => setIsContactWidgetOpen(false)} onSaveSuccess={(savedContact, isEdit) => { if (isEdit) { onContactUpdated(savedContact); } else { onContactCreated(savedContact); } }} />
-
+      {databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep') && (
+        <PreOutreachPrepWidget 
+          dbTask={databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep')!} 
+          isOpen={isPrepWidgetOpen} 
+          onClose={() => setIsPrepWidgetOpen(false)} 
+          onSaveSuccess={(updatedAction) => onActionUpdated(updatedAction)} 
+        />
+      )}
     </div>
   );
 }
