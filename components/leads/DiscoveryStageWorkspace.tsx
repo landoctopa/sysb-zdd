@@ -61,9 +61,14 @@ export default function DiscoveryStageWorkspace({
 
   const discoveryConfig = IRIS_PLAYBOOK.discovery;
 
-  const databaseDiscoveryTasks = actions
-    .filter(a => a.stage === 'discovery' && a.type === 'task')
-    .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
+  // Filter and sort tasks from your unified polymorphic actions ledger
+const databaseDiscoveryTasks = actions
+  .filter((a) => {
+    const meta = (a.metadata as Record<string, any>) || {};
+    // Verifies the structural type and ensures it is bound to a playbook config task ID
+    return a.type === 'task' && typeof meta.task_config_id === 'string';
+  })
+  .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
 
   // Determine current active task step dynamically on page load
   useEffect(() => {
@@ -206,10 +211,10 @@ export default function DiscoveryStageWorkspace({
           <Card
             key={dbTask.id}
             className={`transition-all duration-200 overflow-hidden ${isExpanded
-                ? 'bg-white text-slate-900 border-2 border-slate-900 ring-4 ring-slate-900/5 shadow-md'
-                : isCompleted
-                  ? 'bg-slate-100 border border-slate-200 shadow-sm text-slate-700'
-                  : 'border-border/60 hover:border-border/100 bg-card text-foreground'
+              ? 'bg-white text-slate-900 border-2 border-slate-900 ring-4 ring-slate-900/5 shadow-md'
+              : isCompleted
+                ? 'bg-slate-100 border border-slate-200 shadow-sm text-slate-700'
+                : 'border-border/60 hover:border-border/100 bg-card text-foreground'
               }`}
           >
             {/* COMMON EXPANSION TRIGGER CONTAINER */}
@@ -265,7 +270,16 @@ export default function DiscoveryStageWorkspace({
                 )}
 
                 {configId === 'log_discovery_call' && (
-                  <Step5LogDiscoveryCall dbTask={dbTask} isSaving={isSaving} onCompleteTask={handleCompleteTask} />
+                  <Step5LogDiscoveryCall
+                    lead={lead}
+                    dbTask={dbTask}
+                    actions={actions}
+                    contacts={contacts}
+                    isSaving={isSaving}
+                    onActionUpdated={onActionUpdated}
+                    onCompleteTask={handleCompleteTask}
+                    onContactUpdated={onContactUpdated}
+                  />
                 )}
 
               </div>
