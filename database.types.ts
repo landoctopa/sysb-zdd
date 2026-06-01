@@ -26,6 +26,7 @@ export type Database = {
           iris_tip: string | null
           lead_id: string
           metadata: Json
+          pipeline_stage: Database["public"]["Enums"]["lead_status"] | null
           required: boolean
           status: Database["public"]["Enums"]["action_status"]
           task_order: number | null
@@ -44,6 +45,7 @@ export type Database = {
           iris_tip?: string | null
           lead_id: string
           metadata?: Json
+          pipeline_stage?: Database["public"]["Enums"]["lead_status"] | null
           required?: boolean
           status?: Database["public"]["Enums"]["action_status"]
           task_order?: number | null
@@ -62,6 +64,7 @@ export type Database = {
           iris_tip?: string | null
           lead_id?: string
           metadata?: Json
+          pipeline_stage?: Database["public"]["Enums"]["lead_status"] | null
           required?: boolean
           status?: Database["public"]["Enums"]["action_status"]
           task_order?: number | null

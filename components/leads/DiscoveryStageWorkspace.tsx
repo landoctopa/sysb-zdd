@@ -65,12 +65,8 @@ export default function DiscoveryStageWorkspace({
 
   // Filter and sort tasks from your unified polymorphic actions ledger
   const databaseDiscoveryTasks = actions
-    .filter((a) => {
-      const meta = (a.metadata as Record<string, any>) || {};
-      // Verifies the structural type and ensures it is bound to a playbook config task ID
-      return a.type === 'task' && typeof meta.task_config_id === 'string';
-    })
-    .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
+  .filter((a) => a.type === 'task' && a.pipeline_stage === 'discovery') // Fast, type-safe root filtering!
+  .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
 
   // Determine current active task step dynamically on page load
   useEffect(() => {

@@ -255,7 +255,7 @@ export class IrisOrchestrator {
 
   return {
     lead_id: this.lead.id,
-    stage,
+    pipeline_stage: stage,
     title,
     channel,
     due_date: dueDate.toISOString(),
