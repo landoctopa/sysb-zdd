@@ -153,8 +153,8 @@ export default function PipelineHeader({ lead, actions, contacts, setLead }: Pip
               <Sparkles className="h-3 w-3 text-primary" /> Overall Fit
             </span>
             <div className="flex items-baseline gap-0.5">
-              <span className="text-xl font-black text-foreground tracking-tight">{currentFitScore}</span>
-              <span className="text-xs text-muted-foreground">/ 9</span>
+              <span className="text-xl font-black text-foreground tracking-tight">{lead.hotness_score}</span>
+              <span className="text-xs text-muted-foreground"> % </span>
             </div>
           </div>
           
