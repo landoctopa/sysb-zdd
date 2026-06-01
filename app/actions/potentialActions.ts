@@ -149,3 +149,108 @@ export async function dismissSignal(signalId: string) {
     throw err;
   }
 }
+
+
+export async function createManualPotential(formData: {
+  title: string;
+  company_name: string;
+  sectors: string[];
+  event_category: string;
+  link: string;
+  description: string;
+  country: string;
+}) {
+  const { redirect } = await import('next/navigation');
+  let newLeadId: string | null = null;
+
+  try {
+    const supabase = await createClient();
+
+    // 1. Authenticate user context session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error('Unauthorized');
+
+    // 2. Generate a baseline fallback strategic summary analysis for user-entered fields
+    const defaultJustification = formData.description.trim() || `Manually logged catalyst: ${formData.title}`;
+
+    // 3. Insert directly into the central leads ledger table matching your schema columns
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
+      .insert({
+        user_id: user.id,
+        company_name: formData.company_name.trim() || 'Unknown Company',
+        status: 'discovery',
+        hotness_score: 50, // Standard neutral fallback indicator score for manual items
+        website: formData.link.trim() || null,
+        industry: formData.sectors[0] || null,
+        country: formData.country || 'India',
+        
+        // Deep-freeze contextual fields cleanly inside JSONB atom arrays
+        ai_coach_state: {
+          ai_dossier: {
+            strategic_analysis: defaultJustification,
+            trigger_alignment: `Manual Entry Category: ${formData.event_category}`,
+            business_justification: defaultJustification,
+            hurdles: 'No baseline hazards logged.',
+            estimated_sales_cycle: '30 days'
+          },
+          lead_signals: [{
+            id: crypto.randomUUID(),
+            title: formData.title,
+            description: formData.description,
+            signal_type: 'Expression of Interest',
+            published_at: new Date().toISOString(),
+            company_name: formData.company_name,
+            captured_at: new Date().toISOString()
+          }],
+          stage_history: {
+            manual: {
+              completed_at: new Date().toISOString()
+            }
+          }
+        },
+        strategic_analysis: defaultJustification,
+        trigger_alignment: `Manual entry: ${formData.event_category}`,
+        business_justification: defaultJustification,
+        company_details: {}
+      })
+      .select()
+      .single();
+
+    if (leadError) throw new Error(`Manual entry rejected by database: ${leadError.message}`);
+    newLeadId = lead.id;
+
+    // 4. Seed the polymorphic actions history timeline mapping directly to columns
+    const { error: actionsError } = await supabase
+      .from('actions')
+      .insert([
+        {
+          lead_id: lead.id,
+          stage: 'discovery',
+          type: 'notification',
+          channel: 'internal',
+          status: 'completed',
+          title: `Manual Catalyst Logged: ${formData.title}`,
+          body: formData.description || 'No description provided.',
+          due_date: new Date().toISOString(),
+          required: false
+        }
+      ]);
+
+    if (actionsError) {
+      console.error('[Warning]: Failed to seed manual notification ledger item:', actionsError.message);
+    }
+
+    revalidatePath('/leads');
+    revalidatePath('/potentials');
+
+  } catch (err: any) {
+    console.error('[createManualPotential Exception Boundary]:', err);
+    throw new Error(err.message || 'Transaction runtime failure.');
+  }
+
+  // Next.js redirection execution safely placed outside the main try-catch ecosystem block
+  if (newLeadId) {
+    redirect(`/leads/${newLeadId}`);
+  }
+}
