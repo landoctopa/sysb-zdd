@@ -65,8 +65,12 @@ export default function DiscoveryStageWorkspace({
 
   // Filter and sort tasks from your unified polymorphic actions ledger
   const databaseDiscoveryTasks = actions
-  .filter((a) => a.type === 'task' && a.pipeline_stage === 'discovery') // Fast, type-safe root filtering!
-  .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
+    .filter((a) => {
+      const meta = (a.metadata as Record<string, any>) || {};
+      const taskStage = a.pipeline_stage || meta.stage; // Checks root column, falls back to metadata block
+      return a.type === 'task' && taskStage === 'discovery';
+    })
+    .sort((a, b) => (a.task_order ?? 0) - (b.task_order ?? 0));
 
   // Determine current active task step dynamically on page load
   useEffect(() => {
@@ -88,7 +92,7 @@ export default function DiscoveryStageWorkspace({
       const clearTitle = task.title.replace('{{lead.company_name}}', lead.company_name || 'this company');
       return {
         lead_id: lead.id,
-        stage: 'discovery',
+        pipeline_stage: 'discovery', // Write directly to the new database column field root
         type: 'task',
         status: 'pending',
         channel: task.channel === 'auto' ? 'email' : 'internal',
@@ -96,7 +100,10 @@ export default function DiscoveryStageWorkspace({
         body: task.iris_tip,
         required: task.required,
         task_order: task.order,
-        metadata: { task_config_id: task.id }
+        metadata: {
+          task_config_id: task.id,
+          stage: 'discovery' // Legacy tracker fallback compatibility layer
+        }
       };
     });
 
@@ -311,11 +318,11 @@ export default function DiscoveryStageWorkspace({
       <CompanyDetailsWidget lead={lead} isOpen={isCompanyWidgetOpen} onClose={() => setIsCompanyWidgetOpen(false)} onSaveSuccess={(updatedLead) => onLeadUpdated(updatedLead)} />
       <ContactFormWidget lead={lead} contact={selectedEditContact} isOpen={isContactWidgetOpen} onClose={() => setIsContactWidgetOpen(false)} onSaveSuccess={(savedContact, isEdit) => { if (isEdit) { onContactUpdated(savedContact); } else { onContactCreated(savedContact); } }} />
       {databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep') && (
-        <PreOutreachPrepWidget 
-          dbTask={databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep')!} 
-          isOpen={isPrepWidgetOpen} 
-          onClose={() => setIsPrepWidgetOpen(false)} 
-          onSaveSuccess={(updatedAction) => onActionUpdated(updatedAction)} 
+        <PreOutreachPrepWidget
+          dbTask={databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep')!}
+          isOpen={isPrepWidgetOpen}
+          onClose={() => setIsPrepWidgetOpen(false)}
+          onSaveSuccess={(updatedAction) => onActionUpdated(updatedAction)}
         />
       )}
     </div>
