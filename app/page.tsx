@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Search,
   Brain,
@@ -11,18 +11,17 @@ import {
   FileText,
   Zap,
   ArrowRight,
-  Check,
-  BarChart3,
-  Users,
   Sparkles,
+  Smile,
+  ShieldCheck,
+  Star,
+  AlertCircle
 } from 'lucide-react';
-import DemoMatch from '@/components/landing/DemoMatch';
-import { Metadata } from 'next';
+import SalesReadinessAudit from '@/components/landing/SalesReadinessAudit';
 
-export const metadata: Metadata = {
-  title: 'ZDD – AI‑Powered Lead Discovery & Sales Enablement',
-  description:
-    'ZDD helps solopreneurs and small B2B businesses find high‑intent opportunities, generate AI research dossiers, and close deals faster.',
+export const metadata = {
+  title: 'ZDD – AI‑Powered Sales Readiness & Intent Radar',
+  description: 'Built for small business owners and solopreneurs to turn market noise into closed contracts without cold-calling stress.',
 };
 
 export default async function HomePage() {
@@ -30,83 +29,81 @@ export default async function HomePage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   return (
-    <>
-      {/* ── Hero ── */}
+    <div className="bg-background text-foreground min-h-screen">
+      
+      {/* ── Friendly, Non-Corporate Hero Section ── */}
       <section className="relative overflow-hidden py-16 md:py-24">
-        {/* Subtle gradient background */}
+        {/* Subtle cyan radial gradient matching original theme blueprint */}
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(45%_40%_at_50%_50%,rgba(100,255,218,0.08),transparent)]" />
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <Badge variant="outline" className="mb-6 gap-1 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider">
-              <Zap className="h-3 w-3" />
-              Now in Public Beta
+          <div className="mx-auto max-w-4xl text-center space-y-6">
+            <Badge variant="outline" className="gap-1 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider border-primary/30 bg-primary/5 text-primary">
+              <Zap className="h-3 w-3 fill-current" /> Public Beta · Built for Small Business Owners & Solopreneurs
             </Badge>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
-              Turn market noise into{' '}
-              <span className="text-primary">revenue</span>
+            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl lg:text-7xl leading-none">
+              B2B sales doesn't have to feel like a{' '}
+              <span className="text-primary">second full-time job</span>
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
-              ZDD discovers buying signals hidden in news, events, and
-              regulatory changes, then equips you with AI‑powered research so you
-              can reach out at the perfect moment — before your competitors even
-              know the opportunity exists.
+            <p className="mx-auto max-w-2xl text-base text-muted-foreground sm:text-lg leading-relaxed">
+              You are amazing at your craft, but tracking down clients manually takes hours. ZDD monitors corporate news, funding milestones, and regional market expansion triggers, then drafts exactly who to message and what to say—so you can land meetings without sounding salesy.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-4">
               {user ? (
-                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold shadow-lg">
+                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg transition-all">
                   <Link href="/leads">Go to Dashboard</Link>
                 </Button>
               ) : (
-                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold shadow-lg">
-                  <Link href="/login">Start Free Trial</Link>
+                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg transition-all">
+                  <Link href="/login">Claim 50 Free Leads</Link>
                 </Button>
               )}
-              <Button variant="outline" size="lg" asChild className="h-12 rounded-full px-8 font-semibold">
-                <Link href="/signals">See Signal Feed</Link>
+              <Button variant="outline" size="lg" asChild className="h-12 rounded-full px-8 font-semibold border-border/60 text-foreground hover:bg-muted/10">
+                <Link href="/signals">Browse Live Opportunities</Link>
               </Button>
             </div>
-            <p className="mt-4 text-[11px] text-muted-foreground">
-              No credit card required · Free for your first 50 leads
+            <p className="text-[11px] text-muted-foreground">
+              No credit card required · Free to test your first 50 matched business updates
             </p>
           </div>
         </div>
       </section>
 
-      <DemoMatch />
+      {/* ── Dynamic Audit Hook Canvas Area (Replaced legacy DemoMatch component block) ── */}
+      <SalesReadinessAudit />
 
-      {/* ── The Problem ── */}
-      <section className="border-t border-border/50 py-16 md:py-20">
+      {/* ── Problem Layout Statement Section ── */}
+      <section className="border-t border-border/40 py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
+          <div className="mx-auto max-w-3xl text-center space-y-3">
             <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              You’re missing deals that are right in front of you
+              Why traditional prospecting feels completely broken for small teams
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              Every day, companies announce funding, hire leaders, expand into
-              new markets, or face regulatory changes. These are buying signals —
-              but they get lost in the noise. By the time you find them manually,
-              your competitor has already closed the deal.
+            <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed">
+              When you wear every single hat in your company, cold sales methods just waste your valuable delivery time.
             </p>
           </div>
+          
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
-                title: 'Information overload',
-                desc: 'Too many feeds, newsletters, and alerts. You spend hours scrolling, not selling.',
+                title: 'Hours lost to blind digging',
+                desc: 'Scrolling through news wires, feeds, and job posts looking for client indicators is exhausting. You end up spending more time hunting for projects than actually producing your best work.',
               },
               {
-                title: 'No context',
-                desc: 'A news headline doesn’t tell you why the company needs your service — or when to reach out.',
+                title: 'You don’t know when to strike',
+                desc: 'A cold introductory pitch sent out of the blue gets instantly ignored. To get a response, you need a warm contextual anchor—like a corporate brand raising capital or setting up new regional offices.',
               },
               {
-                title: 'Slow follow‑up',
-                desc: 'Manual research takes days. Speed matters when the trigger event is fresh.',
+                title: 'Generic corporate copies fail',
+                desc: 'Copy-pasting stiff sales templates makes you look like spam. To command attention from a busy founder, your note must look like an honest, direct observation from an experienced peer.',
               },
             ].map((item) => (
-              <Card key={item.title} className="border-border/60 bg-card/80 backdrop-blur-sm">
-                <CardContent className="p-5">
-                  <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
+              <Card key={item.title} className="border-border/60 bg-card/60 backdrop-blur-sm">
+                <CardContent className="p-5 space-y-2">
+                  <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    <AlertCircle className="h-4 w-4 text-primary/80" /> {item.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -114,58 +111,58 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Features ── */}
-      <section className="border-t border-border/50 py-16 md:py-20">
+      {/* ── Feature Presentation Panel Section ── */}
+      <section className="border-t border-border/40 py-16 md:py-20 bg-secondary/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
+          <div className="mx-auto max-w-3xl text-center space-y-3">
             <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Everything you need to close smarter
+              Everything you need to find clients, simplified
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              From signal discovery to deal‑ready research — all in one
-              lightweight platform that fits into your existing workflow.
+            <p className="text-sm text-muted-foreground">
+              No complicated enterprise jargon or software configurations. Just an intelligent, supportive layout that helps you connect with companies who need you.
             </p>
           </div>
+
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: Search,
-                title: 'Lead Discovery',
-                desc: 'We monitor global news, RSS feeds, and regulatory filings to surface high‑intent signals matched to your ICP.',
+                title: 'Live Market Radars',
+                desc: 'We watch global news releases, business journals, and public RSS feeds to surface companies launching physical or digital expansion tracks.',
               },
               {
                 icon: Brain,
-                title: 'AI‑Assisted Research',
-                desc: 'One click generates a strategic dossier — company analysis, sales triggers, hurdles, and a ready‑to‑use justification.',
+                title: 'Instant Client Briefings',
+                desc: 'One click compiles a clean strategic dossier profile—summarizing exactly what they sell, their expansion triggers, and why they need your service.',
               },
               {
                 icon: Kanban,
-                title: 'Lead Management',
-                desc: 'A simple, visual workbench to triage, prioritise, and progress every opportunity.',
+                title: 'Visual Lead Workbenches',
+                desc: 'A simple, visual step board to track your active outreach threads, update statuses, and move conversations forward at your own comfortable pace.',
               },
               {
                 icon: FileText,
-                title: 'Sales Enablement',
-                desc: 'AI‑crafted talking points and proposal outlines that you can personalise in seconds.',
+                title: 'Iris Message Assistant',
+                desc: 'Get brief introductory text variations for Email or LinkedIn written entirely based on your target contact’s history notes. No corporate fluff allowed.',
               },
               {
                 icon: Sparkles,
-                title: 'Lead Workbench',
-                desc: 'All your research, contacts, and communication history in one place — never lose context again.',
+                title: 'Central Client Lockers',
+                desc: 'Keep all your foundational research notes, prospective profile contacts, conversation timelines, and task logs attached on a single structured screen.',
               },
               {
-                icon: Users,
-                title: 'Integrations',
-                desc: 'Works with your calendar, email, and the tools you already use — no rip‑and‑replace.',
+                icon: Smile,
+                title: 'Sales-Readiness Guardrails',
+                desc: 'Friendly, step-by-step checklist validation steps to ensure your website assets and profile layout link hooks look clean before you start reaching out.',
               },
             ].map((feature) => (
               <Card key={feature.title} className="border-border/60 bg-card/80 backdrop-blur-sm">
-                <CardContent className="p-5 sm:p-6">
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <CardContent className="p-5 sm:p-6 space-y-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
                     <feature.icon className="h-5 w-5 text-primary" />
                   </div>
                   <p className="text-sm font-semibold text-foreground">{feature.title}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{feature.desc}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{feature.desc}</p>
                 </CardContent>
               </Card>
             ))}
@@ -173,82 +170,42 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── How It Works ── */}
-      <section className="border-t border-border/50 py-16 md:py-20">
+      {/* ── Social Proof & Testimonial Workspace Section ── */}
+      <section className="border-t border-border/40 py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
+          <div className="mx-auto max-w-3xl text-center space-y-2">
             <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              From signal to deal in three steps
+              Real results from small studio partners
             </h2>
           </div>
-          <div className="mt-12 grid gap-8 sm:grid-cols-3">
+          
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 text-xs">
             {[
               {
-                step: '01',
-                title: 'Discover',
-                desc: 'ZDD continuously scans global events and matches them against your ideal customer profile.',
-              },
-              {
-                step: '02',
-                title: 'Research',
-                desc: 'AI generates a complete strategic dossier — so you understand the opportunity before you reach out.',
-              },
-              {
-                step: '03',
-                title: 'Close',
-                desc: 'Use the workbench to manage conversations, track progress, and convert signals into revenue.',
-              },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <span className="text-sm font-bold">{item.step}</span>
-                </div>
-                <p className="mt-4 text-lg font-semibold text-foreground">{item.title}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Social Proof (placeholder) ── */}
-      <section className="border-t border-border/50 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Trusted by forward‑thinking teams
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Solopreneurs and small businesses use ZDD to find their next big
-              client.
-            </p>
-          </div>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                quote: '“ZDD helped me land a client I would have never found on my own. The research dossier gave me the confidence to reach out the same day.”',
+                quote: '“I don’t have a sales background, but Iris caught a brand that just closed funding. The brief gave me the perfect insight to draft an honest, short note, and they booked a call with my studio that evening.”',
                 name: 'Priya K.',
-                role: 'Independent Consultant',
+                role: 'Independent Brand Designer',
               },
               {
-                quote: '“We reduced our lead research time from 3 hours to 15 minutes. The AI insights are surprisingly good — it’s like having an analyst on the team.”',
-                name: 'Amit & Co.',
-                role: 'B2B Agency',
+                quote: '“We used to spend hours digging for growth managers on LinkedIn. Now we check the signal dashboard, find an expanding brand, and get a tailored message immediately. It cut our research work from hours to minutes.”',
+                name: 'Amit K.',
+                role: 'Creative Video Producer',
               },
               {
-                quote: '“Finally, a tool that understands how small teams actually work. Lightweight, fast, and incredibly useful.”',
+                quote: '“Finally, a tool that does not treat sales like a complex corporate science experiment. It’s practical, ultra-fast, and helps me maintain a solid project pipeline without hiring a costly agency.”',
                 name: 'Rajesh M.',
-                role: 'SaaS Founder',
+                role: 'B2B Studio Partner',
               },
-            ].map((t) => (
-              <Card key={t.name} className="border-border/60 bg-card/80 backdrop-blur-sm">
-                <CardContent className="p-5 sm:p-6">
-                  <p className="text-sm italic text-foreground/80">{t.quote}</p>
-                  <div className="mt-4 flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-primary/20" />
+            ].map((t, idx) => (
+              <Card key={idx} className="border-border/60 bg-card/40 backdrop-blur-sm">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-center gap-0.5 text-primary"><Star className="h-3 w-3 fill-current" /><Star className="h-3 w-3 fill-current" /><Star className="h-3 w-3 fill-current" /><Star className="h-3 w-3 fill-current" /><Star className="h-3 w-3 fill-current" /></div>
+                  <p className="text-sm italic text-foreground/90 leading-relaxed font-medium">“{t.quote}”</p>
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">{t.name[0]}</div>
                     <div>
                       <p className="text-xs font-semibold text-foreground">{t.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{t.role}</p>
+                      <p className="text-[10px] text-muted-foreground font-medium">{t.role}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -258,36 +215,38 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
-      <section className="border-t border-border/50 py-16 md:py-20">
+      {/* ── Deep Space Floating Footer CTA Section ── */}
+      <section className="border-t border-border/40 py-16 md:py-24 relative overflow-hidden bg-card/40">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(40%_50%_at_50%_50%,rgba(100,255,218,0.05),transparent)]" />
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-4xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Start finding your next client today
+          <div className="mx-auto max-w-3xl text-center space-y-5">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              Start finding your next project challenge today
             </h2>
-            <p className="mt-4 text-muted-foreground">
-              Free for your first 50 leads. No credit card, no setup fees.
+            <p className="max-w-xl mx-auto text-base text-muted-foreground">
+              Get full access to your signal feed streams and your first 50 research leads completely on us. No hidden credit card commitments.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
               {user ? (
-                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold shadow-lg">
-                  <Link href="/leads">Go to Dashboard</Link>
+                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
+                  <Link href="/leads">Open Your Dashboard</Link>
                 </Button>
               ) : (
-                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold shadow-lg">
-                  <Link href="/login">Start Free Trial</Link>
+                <Button size="lg" asChild className="h-12 rounded-full px-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
+                  <Link href="/login">Launch Your Free Dashboard</Link>
                 </Button>
               )}
-              <Button variant="outline" size="lg" asChild className="h-12 rounded-full px-8 font-semibold">
-                <Link href="/signals">Explore Live Signals</Link>
-              </Button>
             </div>
-            <p className="mt-4 text-[11px] text-muted-foreground">
-              Questions? <Link href="mailto:hello@z-dd.com" className="underline underline-offset-2">hello@z-dd.com</Link>
+            <p className="text-[11px] text-muted-foreground font-medium">
+              Have a quick question about how we parse updates? Say hello directly at{' '}
+              <Link href="mailto:hello@z-dd.com" className="underline text-primary hover:text-primary-foreground transition-colors">
+                hello@z-dd.com
+              </Link>
             </p>
           </div>
         </div>
       </section>
-    </>
+
+    </div>
   );
 }
