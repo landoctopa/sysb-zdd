@@ -85,6 +85,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// app/api/api/iris/generate/route.ts
+
+// ... keep your top request imports and both POST routing blocks exactly as they are
+
 // ─── AI Direct Connection Engine (DeepSeek) ──────────────────────────────────
 async function callDeepSeek({
   systemPrompt,
@@ -95,69 +99,86 @@ async function callDeepSeek({
   userMessage: string;
   model: string;
 }): Promise<any> {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    console.error('Missing DEEPSEEK_API_KEY environment variable setup');
-    throw new Error('AI copy services are currently not configured');
+  const apiKey = process.env.DEEPSEEK_API_KEY; //[cite: 12]
+  if (!apiKey) { //[cite: 12]
+    console.error('Missing DEEPSEEK_API_KEY environment variable setup'); //[cite: 12]
+    throw new Error('AI copy services are currently not configured'); //[cite: 12]
   }
 
   const res = await fetch('https://api.deepseek.com/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`, //[cite: 12]
     },
     body: JSON.stringify({
-      model: model === 'deepseek-chat' ? 'deepseek-chat' : 'deepseek-chat',
+      model: 'deepseek-chat', //[cite: 12]
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
+        { role: 'system', content: systemPrompt }, //[cite: 12]
+        { role: 'user', content: userMessage }, //[cite: 12]
       ],
-      temperature: 0.7,
-      max_tokens: 1500,
+      // 💎 ENHANCEMENT: Enforce strict native JSON output mode at the provider level
+      response_format: {
+        type: 'json_object'
+      },
+      temperature: 0.6, // Tighter creativity controls for high-relevance outreach metrics
+      max_tokens: 1500, //[cite: 12]
     }),
   });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error(`DeepSeek proxy endpoint returned error ${res.status}: ${errorText}`);
-    throw new Error(`AI service encountered an execution block: ${res.status}`);
+  if (!res.ok) { //[cite: 12]
+    const errorText = await res.text(); //[cite: 12]
+    console.error(`DeepSeek proxy endpoint returned error ${res.status}: ${errorText}`); //[cite: 12]
+    throw new Error(`AI service encountered an execution block: ${res.status}`); //[cite: 12]
   }
 
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  return parseAiOutput(text);
+  const data = await res.json(); //[cite: 12]
+  const text = data.choices?.[0]?.message?.content || ''; //[cite: 12]
+  return parseAiOutput(text); //[cite: 12]
 }
 
 // ─── Text Prompt Compilation Helpers ─────────────────────────────────────────
 function buildUserMessage(
   context: Record<string, unknown>,
-  outputFormat: string | Record<string, string>
+  outputFormat: string | Record<string, any> // Upgraded typing from string to any object mapping
 ): string {
   const contextStr = Object.entries(context)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-    .join('\n');
+    .filter(([, v]) => v !== undefined && v !== null) //[cite: 12]
+    .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`) //[cite: 12]
+    .join('\n'); //[cite: 12]
 
   let formatStr: string;
+  
   if (typeof outputFormat === 'string') {
-    formatStr = `Return as: ${outputFormat}. Return ONLY valid JSON records.`;
+    formatStr = `Return as: ${outputFormat}. Return ONLY valid JSON records.`; //[cite: 12]
+  } else if (outputFormat && typeof outputFormat === 'object') {
+    // 💎 FIX: Detects multi-channel structure to give the copywriter concrete structural rules
+    formatStr = `
+You must respond with a single, valid JSON object following this exact blueprint:
+${JSON.stringify(outputFormat, null, 2)}
+
+Ensure the fields match these specifications:
+- "email": Must contain an object with a short text "subject" line and a fully customized text "body".
+- "linkedin": Must contain an object with a single text "message" line.
+
+Do not wrap the response in markdown code blocks like \\\`\\\`\\\`json. Return only the raw JSON.`;
   } else {
-    formatStr = `Return a JSON object with these exact keys: ${JSON.stringify(outputFormat)}. Return ONLY the plain JSON code, do not add markdown wrapping ticks or intro commentary.`;
+    formatStr = `Return a JSON object with these exact keys: ${JSON.stringify(outputFormat)}. Return ONLY raw plain JSON code lines.`; //[cite: 12]
   }
 
-  return `Context Details:\n${contextStr}\n\nFormatting Guidelines:\n${formatStr}`;
+  return `Context Details:\n${contextStr}\n\nFormatting Guidelines:\n${formatStr}`; //[cite: 12]
 }
 
+// Keep your parseAiOutput helper identical[cite: 12]
 function parseAiOutput(text: string): any {
-  let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim(); //[cite: 12]
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/); //[cite: 12]
   if (jsonMatch) {
-    cleaned = jsonMatch[0];
+    cleaned = jsonMatch[0]; //[cite: 12]
   }
   try {
-    return JSON.parse(cleaned);
+    return JSON.parse(cleaned); //[cite: 12]
   } catch {
-    return { message: text.trim() };
+    return { message: text.trim() }; //[cite: 12]
   }
 }

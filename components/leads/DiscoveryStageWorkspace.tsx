@@ -307,6 +307,7 @@ export default function DiscoveryStageWorkspace({
                     onActionUpdated={onActionUpdated}
                     onCompleteTask={handleCompleteTask}
                     onContactUpdated={onContactUpdated}
+                    onLeadUpdated={onLeadUpdated}
                   />
                 )}
 

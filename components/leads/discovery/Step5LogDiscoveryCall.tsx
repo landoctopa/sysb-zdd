@@ -4,7 +4,7 @@
 import React, { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Database } from '@/database.types';
-import { CheckCircle2, AlertTriangle, RefreshCw, ThumbsUp, ThumbsDown, Users } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, RefreshCw, ThumbsUp, ThumbsDown, Users, Sparkles, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { $isSyncing, refreshActiveActions } from '@/store/leadsStore';
@@ -22,6 +22,7 @@ interface Step5Props {
   onActionUpdated: (action: Action) => void;
   onCompleteTask: (task: Action, meta?: Record<string, any>) => void;
   onContactUpdated: (contact: Contact) => void;
+  onLeadUpdated?: (updatedLead: Database['public']['Tables']['leads']['Row']) => void;
 }
 
 export default function Step5LogDiscoveryCall({ 
@@ -32,7 +33,8 @@ export default function Step5LogDiscoveryCall({
   isSaving, 
   onActionUpdated,
   onCompleteTask,
-  onContactUpdated
+  onContactUpdated,
+  onLeadUpdated
 }: Step5Props) {
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [responseType, setResponseType] = useState<'positive' | 'negative' | 'unresponsive' | null>(null);
@@ -40,7 +42,6 @@ export default function Step5LogDiscoveryCall({
   const [isMutationPending, startMutation] = useTransition();
   const globalSyncing = useStore($isSyncing);
 
-  // Locate current active outreach task block to drive the loop reset sequence
   const outreachTask = actions.find(a => (a.metadata as any)?.task_config_id === 'send_first_outreach');
 
   const handleUpdateContactAndLog = async () => {
@@ -49,9 +50,8 @@ export default function Step5LogDiscoveryCall({
       return;
     }
 
-    const toastId = toast.loading('Saving conversation response details...');
+    const toastId = toast.loading('Saving details and advancing pipeline stage...');
     
-    // Map internal conversational outcome straight to our production database enums
     const mappedStatus: ContactStatus = responseType === 'positive' 
       ? 'engaged' 
       : responseType === 'negative' 
@@ -60,7 +60,7 @@ export default function Step5LogDiscoveryCall({
 
     startMutation(async () => {
       try {
-        // 1. Update the contact row target via standard Supabase proxy endpoints
+        // 1. Update the contact row target
         const contactRes = await fetch(`/api/contacts/${selectedContactId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -71,17 +71,31 @@ export default function Step5LogDiscoveryCall({
         const updatedContact = await contactRes.json();
         onContactUpdated(updatedContact);
 
-        // 2. Clear out step gate restrictions using the global task confirmation function
+        // 2. Clear out step gate restrictions using the global task confirmation handler
         onCompleteTask(dbTask, {
           selected_contact: selectedContactId,
           outcome: responseType,
           challenges_logged: notes.trim()
         });
 
-        toast.success('Response successfully saved!', { id: toastId });
+        // 3. AUTOMATION ENGINE: Mutate lead table root state from 'discovery' to 'engaged' natively
+        const leadRes = await fetch(`/api/leads/${lead.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'engaged' })
+        });
+
+        if (leadRes.ok) {
+          const updatedLead = await leadRes.json();
+          if (onLeadUpdated) {
+            onLeadUpdated(updatedLead);
+          }
+        }
+
+        toast.success('Awesome! Discovery is complete and you are officially in the Engaged stage.', { id: toastId });
       } catch (err) {
         console.error('[Step 5 Logging Exception]:', err);
-        toast.error('Could not save conversation log metrics.', { id: toastId });
+        toast.error('Could not advance pipeline state automatically.', { id: toastId });
       }
     });
   };
@@ -93,7 +107,6 @@ export default function Step5LogDiscoveryCall({
     
     startMutation(async () => {
       try {
-        // Drop outreach task completion flags straight back into pending stage limits
         const resetRes = await fetch(`/api/actions/${outreachTask.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -111,7 +124,6 @@ export default function Step5LogDiscoveryCall({
         const updatedOutreach = await resetRes.json();
         onActionUpdated(updatedOutreach);
 
-        // Mark current contact as unresponsive or rejected if selected
         if (selectedContactId && responseType) {
           const targetStatus: ContactStatus = responseType === 'negative' ? 'rejected' : 'unresponsive';
           const contactRes = await fetch(`/api/contacts/${selectedContactId}`, {
@@ -125,26 +137,43 @@ export default function Step5LogDiscoveryCall({
           }
         }
 
-        // Force NanoStores checklist layout synchronization instantly
         await refreshActiveActions(lead.id);
         toast.success('Step 4 is open again! Select a backup contact and retry.', { id: toastId });
       } catch (err) {
-        toast.error('Could not open step back up.', { id: toastId });
+        toast.error('Could not open step back up.');
       }
     });
   };
 
-  // Guardrail layout if the milestone condition passes successfully
   const hasAnEngagedContact = contacts.some(c => c.status === 'engaged');
   if (dbTask.status === 'completed' || hasAnEngagedContact) {
+    const activeContact = contacts.find(c => c.status === 'engaged') || contacts.find(c => c.id === (dbTask.metadata as any)?.selected_contact);
+    
     return (
-      <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-md text-xs space-y-2 select-none animate-fadeIn">
-        <div className="flex items-center gap-2 text-emerald-700 font-bold">
-          <CheckCircle2 className="h-4 w-4 shrink-0" /> Response tracking logged successfully!
+      <div className="p-5 bg-gradient-to-br from-emerald-50 to-emerald-100/60 border-2 border-emerald-600 rounded-xl text-xs space-y-4 animate-fadeIn shadow-sm">
+        <div className="flex items-center gap-2 text-emerald-800">
+          <div className="p-1.5 bg-emerald-600 rounded-lg text-white shadow-sm">
+            <Sparkles className="h-4 w-4 animate-bounce" />
+          </div>
+          <div>
+            <h3 className="font-black text-sm tracking-tight text-emerald-950">Boom! First Breakthrough Locked In! 🎉</h3>
+            <p className="text-[11px] text-emerald-700/90 font-medium mt-0.5">You broke through the noise with **{activeContact?.name || lead.company_name}**.</p>
+          </div>
         </div>
-        <p className="text-slate-600 leading-relaxed font-medium">
-          You have broken through and locked in an interested stakeholder. You are now free to use the pipeline track controls in the header to advance this account whenever you are ready.
-        </p>
+
+        <div className="bg-white/80 backdrop-blur-sm border border-emerald-200 p-3.5 rounded-lg text-slate-700 font-medium space-y-2 leading-relaxed shadow-sm">
+          <p className="text-slate-900 font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+            <ArrowRight className="h-3.5 w-3.5 text-emerald-600" /> What happens in the next stage?
+          </p>
+          <p>
+            Now that you have an open line of communication, you are moving into the **Engaged stage**. 
+            Instead of just introducing yourself, your next mission is to map out other key decision-makers 
+            in the company and turn this initial interest into a formal stakeholder alignment chat.
+          </p>
+          <p className="text-emerald-800 font-bold italic pt-1">
+            "Huge milestone. Getting a funded brand to pause and reply is a massive win. Take a breath, refresh your canvas, and let's go build this champion loop!" — Iris AI
+          </p>
+        </div>
       </div>
     );
   }
