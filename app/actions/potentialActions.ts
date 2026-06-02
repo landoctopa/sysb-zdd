@@ -34,6 +34,7 @@ export async function promotePotential(signalId: string, virtualState: VirtualSi
       title: rawSignal.title || 'Untitled Signal',
       description: rawSignal.description || '',
       signal_type: rawSignal.signal_type || 'Company News',
+      link: rawSignal.source_link || null,
       published_at: rawSignal.published_at || new Date().toISOString(),
       company_name: rawSignal.company_name || 'Unknown Company',
       captured_at: new Date().toISOString()

@@ -302,6 +302,7 @@ export type Database = {
           industry: string | null
           linkedin_url: string | null
           raw_signal_id: string | null
+          source_link: string | null
           status: Database["public"]["Enums"]["lead_status"]
           strategic_analysis: string | null
           strategic_hurdles: string | null
@@ -323,6 +324,7 @@ export type Database = {
           industry?: string | null
           linkedin_url?: string | null
           raw_signal_id?: string | null
+          source_link?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           strategic_analysis?: string | null
           strategic_hurdles?: string | null
@@ -344,6 +346,7 @@ export type Database = {
           industry?: string | null
           linkedin_url?: string | null
           raw_signal_id?: string | null
+          source_link?: string | null
           status?: Database["public"]["Enums"]["lead_status"]
           strategic_analysis?: string | null
           strategic_hurdles?: string | null

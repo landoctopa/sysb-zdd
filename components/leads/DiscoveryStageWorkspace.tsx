@@ -319,6 +319,7 @@ export default function DiscoveryStageWorkspace({
       <ContactFormWidget lead={lead} contact={selectedEditContact} isOpen={isContactWidgetOpen} onClose={() => setIsContactWidgetOpen(false)} onSaveSuccess={(savedContact, isEdit) => { if (isEdit) { onContactUpdated(savedContact); } else { onContactCreated(savedContact); } }} />
       {databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep') && (
         <PreOutreachPrepWidget
+          lead={lead} // 🔥 ADDED THIS PROP
           dbTask={databaseDiscoveryTasks.find(a => (a.metadata as any)?.task_config_id === 'pre_outreach_prep')!}
           isOpen={isPrepWidgetOpen}
           onClose={() => setIsPrepWidgetOpen(false)}
