@@ -289,7 +289,8 @@ export default function DiscoveryStageWorkspace({
                   <Step4SendOutreach
                     lead={lead}
                     dbTask={dbTask}
-                    actions={actions} // 🛠️ Added property injection link
+                    actions={actions}
+                    contacts={contacts} // 🔥 ADDED THIS PROPERTY INJECTION LINE
                     isSaving={isSaving}
                     onActionUpdated={onActionUpdated}
                     onCompleteTask={handleCompleteTask}

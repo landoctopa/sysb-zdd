@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FileText, Save, Loader2, CheckSquare, ExternalLink } from 'lucide-react';
+import { Save, Loader2, CheckSquare, ExternalLink } from 'lucide-react';
 import { Database } from '@/database.types';
 import { toast } from 'sonner';
 
@@ -12,7 +12,7 @@ type Action = Database['public']['Tables']['actions']['Row'];
 type Lead = Database['public']['Tables']['leads']['Row'];
 
 interface PrepWidgetProps {
-  lead: Lead; // 💎 Injecting the root lead record to easily grab source_link
+  lead: Lead;
   dbTask: Action;
   isOpen: boolean;
   onClose: () => void;
@@ -22,7 +22,6 @@ interface PrepWidgetProps {
 export default function PreOutreachPrepWidget({ lead, dbTask, isOpen, onClose, onSaveSuccess }: PrepWidgetProps) {
   const [isSaving, setIsSaving] = useState(false);
 
-  // 🛠️ Boolean Checkbox States replacing legacy raw text areas
   const [checkSignal, setCheckSignal] = useState(false);
   const [checkWebsite, setCheckWebsite] = useState(false);
   const [checkLinkedin, setCheckLinkedin] = useState(false);
@@ -55,13 +54,12 @@ export default function PreOutreachPrepWidget({ lead, dbTask, isOpen, onClose, o
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Core Guardrail: Ensure they checked the structural baselines before continuing
     if (!checkSignal || !checkWebsite || !checkLinkedin) {
-      toast.error('Please verify you have reviewed the background trigger signal, website, and LinkedIn layout.');
+      toast.error('Please check off the first 3 required steps before saving.');
       return;
     }
 
-    const toastId = toast.loading('Saving review checklist entries...');
+    const toastId = toast.loading('Saving your checklist...');
     const currentMeta = (dbTask.metadata as Record<string, any>) || {};
     setIsSaving(true);
 
@@ -88,11 +86,11 @@ export default function PreOutreachPrepWidget({ lead, dbTask, isOpen, onClose, o
       if (!response.ok) throw new Error('Database write rejected');
       const updatedAction = await response.json();
 
-      toast.success('Pre-outreach checklist saved successfully!', { id: toastId });
+      toast.success('Checklist saved!', { id: toastId });
       onSaveSuccess(updatedAction);
       onClose();
     } catch (err) {
-      toast.error('Could not save checklist notes.', { id: toastId });
+      toast.error('Could not save checklist.', { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -103,74 +101,160 @@ export default function PreOutreachPrepWidget({ lead, dbTask, isOpen, onClose, o
       <DialogContent className="bg-white text-slate-900 border-2 border-slate-900 w-[95vw] sm:max-w-lg rounded-xl shadow-2xl p-6">
         <DialogHeader>
           <DialogTitle className="text-base font-black flex items-center gap-2 text-slate-900 tracking-tight">
-            <CheckSquare className="h-4 w-4" /> Pre-Outreach Research Checklist
+            <CheckSquare className="h-4 w-4" /> Pre-Outreach Checklist
           </DialogTitle>
           <DialogDescription className="text-[11px] text-slate-500 font-medium">
-            Complete this baseline validation to ensure you have full context before initializing outreach copy channels.
+            Make sure you have a basic grasp of who this company is and what they are up to before you reach out.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleFormSubmit} className="space-y-4 pt-2 text-xs">
           
-          <div className="space-y-2.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Required Steps</span>
+          {/* Must-Do Steps Section */}
+          <div className="space-y-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Must-Do Steps</span>
             
-            <div className="space-y-2">
-              <label className="flex items-start gap-2.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-                <input type="checkbox" checked={checkSignal} onChange={(e) => setCheckSignal(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0" disabled={isSaving} />
-                <span>I have reviewed the incoming **market trigger signal** details that flagged this opportunity.</span>
-              </label>
-              
-              {/* 🔗 DYNAMIC DEEP LINK HOOK: Pulls the RSS URL directly from your permanent column layout */}
-              {lead.source_link && (
-                <div className="pl-6">
-                  <a 
-                    href={lead.source_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 border border-blue-100 px-2 py-0.5 rounded transition-colors"
-                  >
-                    Open Original RSS News Article <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                </div>
-              )}
+            {/* 1. News/Update */}
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox" 
+                id="check-signal"
+                checked={checkSignal} 
+                onChange={(e) => setCheckSignal(e.target.checked)} 
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0 cursor-pointer" 
+                disabled={isSaving} 
+              />
+              <div className="space-y-1">
+                <label htmlFor="check-signal" className="font-medium text-slate-700 cursor-pointer select-none">
+                  I read the news or market update that triggered this opportunity.
+                </label>
+                {lead.source_link && (
+                  <div className="block">
+                    <a 
+                      href={lead.source_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 border border-blue-100 px-2 py-0.5 rounded transition-colors"
+                    >
+                      Read news article <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <label className="flex items-start gap-2.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-              <input type="checkbox" checked={checkWebsite} onChange={(e) => setCheckWebsite(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0" disabled={isSaving} />
-              <span>I have checked their corporate **website** to verify what they do.</span>
-            </label>
+            {/* 2. Corporate Website */}
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox" 
+                id="check-website"
+                checked={checkWebsite} 
+                onChange={(e) => setCheckWebsite(e.target.checked)} 
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0 cursor-pointer" 
+                disabled={isSaving} 
+              />
+              <div className="space-y-1">
+                <label htmlFor="check-website" className="font-medium text-slate-700 cursor-pointer select-none">
+                  I opened their website to see what they sell or do.
+                </label>
+                {lead.website && (
+                  <div className="block">
+                    <a 
+                      href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 border border-blue-100 px-2 py-0.5 rounded transition-colors"
+                    >
+                      Open website <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
 
-            <label className="flex items-start gap-2.5 cursor-pointer font-medium text-slate-700 hover:text-slate-900">
-              <input type="checkbox" checked={checkLinkedin} onChange={(e) => setCheckLinkedin(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0" disabled={isSaving} />
-              <span>I evaluated their organization page or target profiles on **LinkedIn**.</span>
-            </label>
+            {/* 3. LinkedIn Profiles */}
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox" 
+                id="check-linkedin"
+                checked={checkLinkedin} 
+                onChange={(e) => setCheckLinkedin(e.target.checked)} 
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0 cursor-pointer" 
+                disabled={isSaving} 
+              />
+              <div className="space-y-1">
+                <label htmlFor="check-linkedin" className="font-medium text-slate-700 cursor-pointer select-none">
+                  I looked at their company page or key people on LinkedIn.
+                </label>
+                {lead.linkedin_url && (
+                  <div className="block">
+                    <a 
+                      href={lead.linkedin_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:underline bg-blue-50 border border-blue-100 px-2 py-0.5 rounded transition-colors"
+                    >
+                      Open LinkedIn <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
 
+          {/* Extra Context Section */}
           <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-lg border border-slate-200 border-dashed">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Recommended Context Buffers</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">Extra Context (Recommended)</span>
 
-            <label className="flex items-start gap-2.5 cursor-pointer font-medium text-slate-500 hover:text-slate-900">
-              <input type="checkbox" checked={checkSocials} onChange={(e) => setCheckSocials(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0" disabled={isSaving} />
-              <span>I scanned their brand's recent **social accounts / media updates**.</span>
-            </label>
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox" 
+                id="check-socials"
+                checked={checkSocials} 
+                onChange={(e) => setCheckSocials(e.target.checked)} 
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0 cursor-pointer" 
+                disabled={isSaving} 
+              />
+              <label htmlFor="check-socials" className="font-medium text-slate-500 hover:text-slate-900 cursor-pointer select-none">
+                I glanced at their recent social media posts.
+              </label>
+            </div>
 
-            <label className="flex items-start gap-2.5 cursor-pointer font-medium text-slate-500 hover:text-slate-900">
-              <input type="checkbox" checked={checkProducts} onChange={(e) => setCheckProducts(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0" disabled={isSaving} />
-              <span>I understand their core **product lines or latest marketing campaigns**.</span>
-            </label>
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox" 
+                id="check-products"
+                checked={checkProducts} 
+                onChange={(e) => setCheckProducts(e.target.checked)} 
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0 cursor-pointer" 
+                disabled={isSaving} 
+              />
+              <label htmlFor="check-products" className="font-medium text-slate-500 hover:text-slate-900 cursor-pointer select-none">
+                I have a basic idea of their products or latest marketing campaigns.
+              </label>
+            </div>
 
-            <label className="flex items-start gap-2.5 cursor-pointer font-medium text-slate-500 hover:text-slate-900">
-              <input type="checkbox" checked={checkReviews} onChange={(e) => setCheckReviews(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0" disabled={isSaving} />
-              <span>I browsed general **customer feedback & product reviews** regarding their services.</span>
-            </label>
+            <div className="flex items-start gap-2.5">
+              <input 
+                type="checkbox" 
+                id="check-reviews"
+                checked={checkReviews} 
+                onChange={(e) => setCheckReviews(e.target.checked)} 
+                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 accent-slate-900 shrink-0 cursor-pointer" 
+                disabled={isSaving} 
+              />
+              <label htmlFor="check-reviews" className="font-medium text-slate-500 hover:text-slate-900 cursor-pointer select-none">
+                I looked up reviews or feedback from their actual customers.
+              </label>
+            </div>
           </div>
 
-          {/* Lightweight Notes Hook */}
+          {/* Optional Notes Section */}
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Optional Strategy Observation Notes</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Any custom observations or reminders? (Optional)</label>
             <textarea 
-              placeholder="Add any specific observations you want to remember (e.g., 'Mention their brand new packaging design' or 'Mention mutual connection')..." 
+              placeholder="e.g., 'Mention their brand new packaging design' or 'They have a mutual connection with me via...'" 
               value={optionalNotes} 
               onChange={(e) => setOptionalNotes(e.target.value)} 
               rows={2} 
@@ -179,10 +263,11 @@ export default function PreOutreachPrepWidget({ lead, dbTask, isOpen, onClose, o
             />
           </div>
 
+          {/* Footer Actions */}
           <div className="flex justify-end gap-2 pt-2.5 border-t border-slate-100">
             <Button type="button" variant="ghost" onClick={onClose} className="h-8.5 text-xs hover:bg-slate-50 text-slate-500 font-bold" disabled={isSaving}>Cancel</Button>
             <Button type="submit" disabled={isSaving || !checkSignal || !checkWebsite || !checkLinkedin} className="h-8.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white gap-1.5 px-4 shadow-sm rounded-md transition-all">
-              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Lock In Checklist
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save Checklist
             </Button>
           </div>
 
