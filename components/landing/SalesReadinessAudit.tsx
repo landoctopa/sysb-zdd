@@ -4,8 +4,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Sparkles, ShieldCheck, AlertCircle, ArrowRight, Table } from 'lucide-react';
+import { Loader2, Sparkles, ShieldCheck, AlertCircle, ArrowRight, Table, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AuditResult {
@@ -33,7 +32,7 @@ export default function SalesReadinessAudit() {
     }
 
     setIsLoading(true);
-    const toastId = toast.loading('Scraping profiles and building your review blueprint layout...');
+    const toastId = toast.loading('Iris is thinking through your digital footprint...');
 
     try {
       const res = await fetch('/api/evaluate', {
@@ -44,6 +43,15 @@ export default function SalesReadinessAudit() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Audit engine processing run failed');
 
+      // 💎 CACHE ANALYSIS METADATA FOR LAZY ONBOARDING INGESTION
+      localStorage.setItem('zdd_onboarding_audit', JSON.stringify({
+        website,
+        companyName: data.companyName,
+        inferredSectors: data.inferredSectors || [],
+        inferredCountries: data.inferredCountries || [],
+        inferredEventCategories: data.inferredEventCategories || []
+      }));
+
       setResult(data);
       toast.success('Your sales-readiness audit is ready!', { id: toastId });
     } catch (err: any) {
@@ -53,10 +61,16 @@ export default function SalesReadinessAudit() {
     }
   };
 
+  const handleResetAudit = () => {
+    setResult(null);
+    setWebsite('');
+    setLinkedin('');
+  };
+
   return (
     <section className="py-16 md:py-20 border-t border-border/40 bg-secondary/10">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        
+
         <div className="mx-auto max-w-3xl text-center space-y-3">
           <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             See exactly how you look to a premium buyer
@@ -66,48 +80,61 @@ export default function SalesReadinessAudit() {
           </p>
         </div>
 
-        {/* Input Card Container Form */}
-        <div className="mt-8 max-w-xl mx-auto bg-card border border-border/60 shadow-xl rounded-xl p-5 sm:p-6">
-          <form onSubmit={handleRunAudit} className="space-y-4 text-xs font-semibold text-muted-foreground">
-            <div className="space-y-1.5">
-              <label className="block select-none text-foreground">Your Business Website Link *</label>
-              <input 
-                type="text"
-                placeholder="e.g., avakkai.studio or https://mycompany.com"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                className="w-full bg-background border border-border/40 text-xs px-3 h-10 rounded-lg focus:outline-none focus:border-primary/50 text-foreground font-medium transition-colors"
-                disabled={isLoading}
-              />
-            </div>
+        {/* ── CONDITIONAL FORM ELEMENT ── */}
+        {!result ? (
+          <div className="mt-8 max-w-xl mx-auto bg-card border border-border/60 shadow-xl rounded-xl p-5 sm:p-6 animate-fadeIn">
+            <form onSubmit={handleRunAudit} className="space-y-4 text-xs font-semibold text-muted-foreground">
+              <div className="space-y-1.5">
+                <label className="block select-none text-foreground">Your Business Website Link *</label>
+                <input
+                  type="text"
+                  placeholder="e.g., avakkai.studio or https://mycompany.com"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="w-full bg-background border border-border/40 text-xs px-3 h-10 rounded-lg focus:outline-none focus:border-primary/50 text-foreground font-medium transition-colors"
+                  disabled={isLoading}
+                />
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="block select-none text-muted-foreground/70">Your LinkedIn Profile or Company Link (Optional)</label>
-              <input 
-                type="text"
-                placeholder="e.g., linkedin.com/in/ajay-creative"
-                value={linkedin}
-                onChange={(e) => setLinkedin(e.target.value)}
-                className="w-full bg-background border border-border/40 text-xs px-3 h-10 rounded-lg focus:outline-none focus:border-primary/50 text-foreground font-medium transition-colors"
-                disabled={isLoading}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <label className="block select-none text-muted-foreground/70">Your LinkedIn Profile or Company Link (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., linkedin.com/in/ajay-creative"
+                  value={linkedin}
+                  onChange={(e) => setLinkedin(e.target.value)}
+                  className="w-full bg-background border border-border/40 text-xs px-3 h-10 rounded-lg focus:outline-none focus:border-primary/50 text-foreground font-medium transition-colors"
+                  disabled={isLoading}
+                />
+              </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading || !website.trim()}
-              className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs gap-1.5 rounded-lg shadow-sm"
+              <Button
+                type="submit"
+                disabled={isLoading || !website.trim()}
+                className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs gap-1.5 rounded-lg shadow-sm"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {isLoading ? 'Iris is formulating a strategy plan...' : 'Analyze My Client Readiness'}
+              </Button>
+            </form>
+          </div>
+        ) : (
+          /* Clean layout header action when the form is closed */
+          <div className="mt-6 flex justify-center animate-fadeIn">
+            <button
+              type="button"
+              onClick={handleResetAudit}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 hover:underline bg-card border border-border/60 px-4 py-2 rounded-full shadow-sm transition-all"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {isLoading ? 'Analyzing your profile ...' : 'Analyze My Sales Readiness'}
-            </Button>
-          </form>
-        </div>
+              <RotateCcw className="h-3.5 w-3.5" /> Run Audit for a Different Website
+            </button>
+          </div>
+        )}
 
         {/* Report Output Canvas UI */}
         {result && (
-          <div className="mt-12 bg-card border-2 border-primary/40 shadow-2xl rounded-xl p-6 sm:p-8 text-xs text-foreground space-y-6 animate-fadeIn max-w-4xl mx-auto">
-            
+          <div className="mt-8 bg-card border-2 border-primary/40 shadow-2xl rounded-xl p-6 sm:p-8 text-xs text-foreground space-y-6 animate-fadeIn max-w-4xl mx-auto">
+
             {/* Header Block */}
             <div className="border-b border-border/40 pb-4">
               <span className="bg-primary text-primary-foreground font-mono text-[9px] uppercase px-2 py-0.5 rounded font-black tracking-wider">Audit Report: {result.companyName || 'Your Business'}</span>
@@ -118,7 +145,7 @@ export default function SalesReadinessAudit() {
 
             {/* The Good vs Gaps Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
+
               {/* Positives */}
               <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl space-y-3">
                 <h4 className="font-bold text-primary text-[11px] uppercase tracking-wider flex items-center gap-1.5 select-none">

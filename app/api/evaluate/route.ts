@@ -1,5 +1,6 @@
 // app/api/evaluate/route.ts
 import { NextResponse } from 'next/server';
+import { SECTORS, EVENT_CATEGORIES } from '@/utils/constants';
 
 const rateLimitMap = new Map<string, number>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -37,20 +38,21 @@ export async function POST(req: Request) {
         'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        // 💎 SWITCHED TO MODERNISED DEEPSEEK THINKING INFRASTRUCTURE
         model: 'deepseek-v4-flash', 
         thinking: { type: 'enabled' },
         messages: [
           {
             role: 'system',
-            content: `You are an expert sales companion helping small creative studios, agencies, and independent business owners optimize their online profiles. 
-Speak in warm, encouraging, plain English. Never use dry corporate sales jargon. 
-
-Evaluate their cold outreach readiness based on their details. If a LinkedIn link is provided but you cannot read it due to standard platform login gates, explicitly note that as a mild hurdle under opportunities using the "z reasons" breakdown (e.g., security walls or strict privacy locks) and base your core breakdown on what you can gather from their main website brand data.`
+            content: `You are an expert sales companion helping small creative studios, agencies, and independent business owners optimize their profiles. Speak in warm, plain English.
+            
+            Based on their digital footprint, match their offerings against our canonical system categories to infer who their targets might be:
+            - System Sectors available: ${JSON.stringify(SECTORS)}
+            - System Event Categories available: ${JSON.stringify(EVENT_CATEGORIES)}
+            - Target Countries: Must be lowercase ISO alpha-2 codes (e.g. "in", "us", "ae", "sg", "gb")`
           },
           {
             role: 'user',
-            content: `Please run a sales-readiness audit on this company:
+            content: `Please run a sales-readiness audit on this company and infer their customer target profile arrays:
             Website Link: ${website}
             LinkedIn Profile: ${linkedin || 'Not provided'}
 
@@ -59,27 +61,23 @@ Evaluate their cold outreach readiness based on their details. If a LinkedIn lin
               "companyName": "Estimated company name",
               "intro": "A short, encouraging phrase giving a fresh perspective on their digital setup.",
               "theGood": [
-                "Credential or foundation element that immediately builds authority",
-                "Observed asset or strength that should be capitalized on"
+                "Credential or foundation element that builds authority",
+                "Observed asset or strength"
               ],
               "gaps": {
-                "website": [
-                  "Specific thing that looks more like a resume than a client-focused layout",
-                  "Missing portfolio/case study indicators or confusing internal messaging blocks"
-                ],
-                "linkedin": [
-                  "Detailed observation about their visibility. If LinkedIn was locked or unprovided, output exactly: 'Your LinkedIn profile could not be accessed directly because of standard login gates or strict privacy walls. Since clients check your profile the second you send a note, this makes it an invisible profile hurdle.'"
-                ]
+                "website": ["Specific item to fix"],
+                "linkedin": ["Visibility check note"]
               },
               "actionPlan": [
-                { "priority": "Immediate (Next 1-2 Weeks)", "item": "Fix label", "action": "Simple tactical step instructions" },
-                { "priority": "Near-Term (Next 1-2 Months)", "item": "Build label", "action": "Simple tactical build step" }
-              ]
+                { "priority": "Immediate (Next 1-2 Weeks)", "item": "Fix label", "action": "Simple instruction" }
+              ],
+              "inferredSectors": ["Pick 1-3 highly relevant sector strings from the allowed System Sectors list"],
+              "inferredCountries": ["Pick 1-2 lowercase country codes like 'in' or 'us'"],
+              "inferredEventCategories": ["Pick 1-3 event category strings from the allowed System Event Categories list"]
             }`
           }
         ],
         response_format: { type: 'json_object' }
-        // 🛠️ REMOVED TEMPERATURE PARAMETER (DeepSeek Thinking handles this automatically)
       })
     });
 
@@ -91,6 +89,6 @@ Evaluate their cold outreach readiness based on their details. If a LinkedIn lin
     return NextResponse.json(resultPayload);
   } catch (error) {
     console.error('Audit route exception:', error);
-    return NextResponse.json({ error: 'We could not complete the scan right now. Double check your links and try again.' }, { status: 500 });
+    return NextResponse.json({ error: 'We could not complete the scan right now.' }, { status: 500 });
   }
 }
