@@ -32,7 +32,7 @@ export default function SalesReadinessAudit() {
     }
 
     setIsLoading(true);
-    const toastId = toast.loading('Iris is thinking through your digital footprint...');
+    const toastId = toast.loading('Iris is evaluating your public presence...');
 
     try {
       const res = await fetch('/api/evaluate', {
@@ -43,7 +43,6 @@ export default function SalesReadinessAudit() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Audit engine processing run failed');
 
-      // 💎 CACHE ANALYSIS METADATA FOR LAZY ONBOARDING INGESTION
       localStorage.setItem('zdd_onboarding_audit', JSON.stringify({
         website,
         companyName: data.companyName,
@@ -68,25 +67,21 @@ export default function SalesReadinessAudit() {
   };
 
   return (
-    <section className="py-16 md:py-20 border-t border-border/40 bg-secondary/10">
+    <section id="audit-bench" className="py-12 md:py-16 border-t border-b border-border/40 bg-secondary/10">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-
-        <div className="mx-auto max-w-3xl text-center space-y-3">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            See exactly how you look to a premium buyer
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-xl mx-auto leading-relaxed font-medium">
-            Before you send your next sales message, let Iris scan your public presence. See what built-in authority you have, and where your layout might be confusing prospective clients.
-          </p>
-        </div>
-
-        {/* ── CONDITIONAL FORM ELEMENT ── */}
+        
+        {/* Form Entry State Box wrapper */}
         {!result ? (
-          <div className="mt-8 max-w-xl mx-auto bg-card border border-border/60 shadow-xl rounded-xl p-5 sm:p-6 animate-fadeIn">
+          <div className="max-w-xl mx-auto bg-card border border-border/60 shadow-xl rounded-xl p-5 sm:p-6 animate-fadeIn">
+            <div className="text-center pb-4 space-y-1 border-b border-border/20 mb-4">
+              <h3 className="font-bold text-base text-foreground">Run a Free Sales-Readiness Diagnostic</h3>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">Let Iris scan your current business presentation to point out potential buyer hurdles.</p>
+            </div>
+            
             <form onSubmit={handleRunAudit} className="space-y-4 text-xs font-semibold text-muted-foreground">
               <div className="space-y-1.5">
-                <label className="block select-none text-foreground">Your Business Website Link *</label>
-                <input
+                <label className="block select-none text-foreground">Your Studio or Business Website</label>
+                <input 
                   type="text"
                   placeholder="e.g., avakkai.studio or https://mycompany.com"
                   value={website}
@@ -97,8 +92,8 @@ export default function SalesReadinessAudit() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block select-none text-muted-foreground/70">Your LinkedIn Profile or Company Link (Optional)</label>
-                <input
+                <label className="block select-none text-muted-foreground/70">Your LinkedIn Profile or Page (Optional)</label>
+                <input 
                   type="text"
                   placeholder="e.g., linkedin.com/in/ajay-creative"
                   value={linkedin}
@@ -114,42 +109,39 @@ export default function SalesReadinessAudit() {
                 className="w-full h-10 bg-primary text-primary-foreground hover:bg-primary/90 font-bold text-xs gap-1.5 rounded-lg shadow-sm"
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                {isLoading ? 'Iris is formulating a strategy plan...' : 'Analyze My Client Readiness'}
+                {isLoading ? 'Iris is reviewing your website layers...' : 'Analyze My Presence Setup'}
               </Button>
             </form>
           </div>
         ) : (
-          /* Clean layout header action when the form is closed */
-          <div className="mt-6 flex justify-center animate-fadeIn">
+          /* Reset navigation handler block displayed when the form is hidden */
+          <div className="flex justify-center animate-fadeIn mb-2">
             <button
               type="button"
               onClick={handleResetAudit}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 hover:underline bg-card border border-border/60 px-4 py-2 rounded-full shadow-sm transition-all"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Run Audit for a Different Website
+              <RotateCcw className="h-3.5 w-3.5" /> Analyze a Different Portfolio Link
             </button>
           </div>
         )}
 
-        {/* Report Output Canvas UI */}
+        {/* Structured Dashboard Blueprint Output Panel */}
         {result && (
-          <div className="mt-8 bg-card border-2 border-primary/40 shadow-2xl rounded-xl p-6 sm:p-8 text-xs text-foreground space-y-6 animate-fadeIn max-w-4xl mx-auto">
-
-            {/* Header Block */}
+          <div className="mt-6 bg-card border-2 border-primary/40 shadow-2xl rounded-xl p-6 sm:p-8 text-xs text-foreground space-y-6 animate-fadeIn max-w-4xl mx-auto">
+            
             <div className="border-b border-border/40 pb-4">
-              <span className="bg-primary text-primary-foreground font-mono text-[9px] uppercase px-2 py-0.5 rounded font-black tracking-wider">Audit Report: {result.companyName || 'Your Business'}</span>
+              <span className="bg-primary text-primary-foreground font-mono text-[9px] uppercase px-2 py-0.5 rounded font-black tracking-wider">Evaluation Report: {result.companyName || 'Your Business'}</span>
               <p className="mt-3 text-sm font-semibold text-muted-foreground leading-relaxed italic">
                 "{result.intro}"
               </p>
             </div>
 
-            {/* The Good vs Gaps Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-              {/* Positives */}
+              
               <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl space-y-3">
                 <h4 className="font-bold text-primary text-[11px] uppercase tracking-wider flex items-center gap-1.5 select-none">
-                  <ShieldCheck className="h-4 w-4 text-primary" /> Your Authority Foundation
+                  <ShieldCheck className="h-4 w-4 text-primary" /> Your Authority Strengths
                 </h4>
                 <ul className="space-y-2 font-medium text-muted-foreground leading-relaxed list-disc pl-4">
                   {result.theGood.map((item, idx) => (
@@ -158,20 +150,19 @@ export default function SalesReadinessAudit() {
                 </ul>
               </div>
 
-              {/* Hurdles */}
               <div className="bg-destructive/5 border border-destructive/20 p-4 rounded-xl space-y-3">
                 <h4 className="font-bold text-destructive text-[11px] uppercase tracking-wider flex items-center gap-1.5 select-none">
-                  <AlertCircle className="h-4 w-4 text-destructive" /> Opportunities to Improve
+                  <AlertCircle className="h-4 w-4 text-destructive" /> Conversion Roadblocks Found
                 </h4>
                 <div className="space-y-2.5 font-medium text-muted-foreground leading-relaxed">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-foreground/50 block mb-0.5">Website Adjustments</span>
+                    <span className="text-[10px] uppercase font-bold text-foreground/50 block mb-0.5">Website Hurdles</span>
                     <ul className="list-disc pl-4 space-y-1">
                       {result.gaps.website.map((w, idx) => <li key={idx}>{w}</li>)}
                     </ul>
                   </div>
                   <div className="pt-1">
-                    <span className="text-[10px] uppercase font-bold text-foreground/50 block mb-0.5">LinkedIn Hurdles</span>
+                    <span className="text-[10px] uppercase font-bold text-foreground/50 block mb-0.5">LinkedIn Flaws</span>
                     <ul className="list-disc pl-4 space-y-1">
                       {result.gaps.linkedin.map((l, idx) => <li key={idx}>{l}</li>)}
                     </ul>
@@ -181,7 +172,6 @@ export default function SalesReadinessAudit() {
 
             </div>
 
-            {/* Prioritized Action Roadmap */}
             <div className="space-y-3 bg-background p-4 rounded-xl border border-border/40">
               <h4 className="font-bold text-foreground text-[11px] uppercase tracking-wider flex items-center gap-1.5 select-none">
                 <Table className="h-4 w-4 text-primary" /> Prioritized Action Roadmap
@@ -208,14 +198,14 @@ export default function SalesReadinessAudit() {
               </div>
             </div>
 
-            {/* CTA Transition Loop Hook */}
+            {/* Main Action Loop Handoff Hook */}
             <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 bg-primary/5 p-4 rounded-xl border border-primary/20">
               <div className="space-y-0.5 text-center sm:text-left">
-                <p className="font-bold text-foreground text-sm">Ready to fix these gaps and launch outbound signals?</p>
-                <p className="text-[11px] font-medium text-muted-foreground">Sign up to configure your target client listening radar and automate pipeline sweeps.</p>
+                <p className="font-bold text-foreground text-sm">Ready to fix these gaps and turn signals into meetings?</p>
+                <p className="text-[11px] font-medium text-muted-foreground">Claim your account to auto-populate your profile using these assessment metrics.</p>
               </div>
               <Button asChild className="h-10 px-5 font-bold text-xs bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg gap-1 shadow-sm shrink-0">
-                <Link href="/login">I'm Ready to Sell <ArrowRight className="h-3.5 w-3.5" /></Link>
+                <Link href="/login">Claim My Free Account <ArrowRight className="h-3.5 w-3.5" /></Link>
               </Button>
             </div>
 
