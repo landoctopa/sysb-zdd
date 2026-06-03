@@ -30,14 +30,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Please enter a valid website link so we can run the audit.' }, { status: 400 });
     }
 
-    const aiResponse = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        // 💎 SWITCHED TO MODERNISED DEEPSEEK THINKING INFRASTRUCTURE
+        model: 'deepseek-v4-flash', 
+        thinking: { type: 'enabled' },
         messages: [
           {
             role: 'system',
@@ -77,6 +79,7 @@ Evaluate their cold outreach readiness based on their details. If a LinkedIn lin
           }
         ],
         response_format: { type: 'json_object' }
+        // 🛠️ REMOVED TEMPERATURE PARAMETER (DeepSeek Thinking handles this automatically)
       })
     });
 
