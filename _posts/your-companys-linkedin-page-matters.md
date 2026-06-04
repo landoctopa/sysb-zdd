@@ -1,10 +1,10 @@
 ---
-title: Your Company’s LinkedIn Page: Yes, It Actually Matters for Sales
+title: "Your Company’s LinkedIn Page: Yes, It Actually Matters for Sales"
 description: Learn how a simple, high-impact LinkedIn company page builds instant credibility and helps small businesses turn skeptical profile visitors into warm leads.
 date: 2026-06-03
 version: 1.0
 last_published: 2026-06-03
-author: Marcus Vance
+author: Amit Chanchal
 category: B2B Sales
 tags: [linkedin marketing, company page, b2b sales, small business branding]
 ---

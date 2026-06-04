@@ -1,5 +1,5 @@
 ---
-title: How to Turn Your LinkedIn Profile into a 24/7 Sales Machine
+title: "How to Turn Your LinkedIn Profile into a 24/7 Sales Machine"
 description: Stop treating LinkedIn like a resume. Learn how to transform your personal profile into a trust-building landing page that wins over small business clients.
 date: 2026-06-03
 version: 1.0

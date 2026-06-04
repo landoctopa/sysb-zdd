@@ -4,7 +4,7 @@ description: Local and consumer-facing prospects look you up on social media bef
 date: 2026-06-03
 version: 1.0
 last_published: 2026-06-03
-author: Marcus Vance
+author: Amit Chanchal
 category: Sales Skills
 tags: [social media sales, facebook for business, instagram optimization, trust building]
 ---
