@@ -1,6 +1,20 @@
 import { notFound } from 'next/navigation';
 import { getPostData, getSortedPostsData } from '@/lib/blog';
+import { MDXRemote } from 'next-mdx-remote/rsc';
 import Link from 'next/link';
+
+// Import any shadcn elements or custom components you want available inside your blogs
+import { Button } from '@/components/ui/button';
+
+// Declare custom interactive components available to your MDX files
+const mdxComponents = {
+  Button,
+  Callout: ({ children }: { children: React.ReactNode }) => (
+    <div className="p-4 my-6 rounded-lg bg-primary/10 border-l-4 border-primary text-foreground">
+      {children}
+    </div>
+  ),
+};
 
 export async function generateStaticParams() {
   const posts = getSortedPostsData();
@@ -15,7 +29,7 @@ interface PostPageProps {
 
 export default async function BlogPost({ params }: PostPageProps) {
   const { slug } = await params;
-  const post = await getPostData(slug);
+  const post = getPostData(slug);
 
   if (!post) {
     notFound();
@@ -45,11 +59,10 @@ export default async function BlogPost({ params }: PostPageProps) {
         </div>
       </header>
 
-      {/* Tailwind v4 CSS styled typography content layout */}
-      <div 
-        className="prose" 
-        dangerouslySetInnerHTML={{ __html: post.contentHtml }} 
-      />
+      {/* Renders your MDX text file compiled alongside your interactive UI custom components */}
+      <div className="prose max-w-none text-left">
+        <MDXRemote source={post.content} components={mdxComponents} />
+      </div>
 
       {post.tags.length > 0 && (
         <footer className="mt-12 pt-6 border-t border-border">

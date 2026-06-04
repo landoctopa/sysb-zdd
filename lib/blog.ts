@@ -1,8 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { remark } from 'remark';
-import html from 'remark-html';
 
 const postsDirectory = path.join(process.cwd(), '_posts');
 
@@ -16,18 +14,17 @@ export interface PostData {
   author: string;
   category: string;
   tags: string[];
-  contentHtml: string;
+  content: string; // Keep raw markdown string to compile dynamically
 }
 
-// Get all posts for the listing page
-export function getSortedPostsData(): Omit<PostData, 'contentHtml'>[] {
+export function getSortedPostsData(): Omit<PostData, 'content'>[] {
   if (!fs.existsSync(postsDirectory)) return [];
 
   const fileNames = fs.readdirSync(postsDirectory);
   const allPostsData = fileNames
-    .filter((fileName) => fileName.endsWith('.md'))
+    .filter((fileName) => fileName.endsWith('.md') || fileName.endsWith('.mdx'))
     .map((fileName) => {
-      const slug = fileName.replace(/\.md$/, '');
+      const slug = fileName.replace(/\.mdx?$/, ''); // Strips .md or .mdx
       const fullPath = path.join(postsDirectory, fileName);
       const fileContents = fs.readFileSync(fullPath, 'utf8');
       const { data } = matter(fileContents);
@@ -36,7 +33,6 @@ export function getSortedPostsData(): Omit<PostData, 'contentHtml'>[] {
         slug,
         title: data.title || 'Untitled Post',
         description: data.description || '',
-        // Coerce dates into strings just in case yaml parser reads them as raw dates
         date: data.date ? String(data.date) : '', 
         version: data.version || 1.0,
         last_published: data.last_published ? String(data.last_published) : '',
@@ -46,27 +42,24 @@ export function getSortedPostsData(): Omit<PostData, 'contentHtml'>[] {
       };
     });
 
-  // Sorts posts by newest date first
   return allPostsData.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-// Get raw Markdown body transformed into HTML for a single post view
-export async function getPostData(slug: string): Promise<PostData | null> {
+export function getPostData(slug: string): PostData | null {
   try {
-    const fullPath = path.join(postsDirectory, `${slug}.md`);
+    // Check for .mdx first, fallback to .md
+    let fullPath = path.join(postsDirectory, `${slug}.mdx`);
+    if (!fs.existsSync(fullPath)) {
+      fullPath = path.join(postsDirectory, `${slug}.md`);
+    }
     if (!fs.existsSync(fullPath)) return null;
 
     const fileContents = fs.readFileSync(fullPath, 'utf8');
     const { data, content } = matter(fileContents);
 
-    const processedContent = await remark()
-      .use(html)
-      .process(content);
-    const contentHtml = processedContent.toString();
-
     return {
       slug,
-      contentHtml,
+      content,
       title: data.title || 'Untitled Post',
       description: data.description || '',
       date: data.date ? String(data.date) : '',
