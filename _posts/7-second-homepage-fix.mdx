@@ -25,7 +25,9 @@ The good news? You don't need to spend $5,000 on a fancy website redesign to fix
 
 "Above the fold" is an old newspaper term we use in digital sales. 
 
-> *“Above the fold” simply means everything a visitor sees on your website the moment the page loads, before they scroll down even a single inch.*
+<Callout>
+  **“Above the fold”** simply means everything a visitor sees on your website the moment the page loads, before they scroll down even a single inch.
+</Callout>
 
 When a stranger lands on your site, they need immediate answers to three basic questions within 7 seconds:
 
@@ -35,8 +37,29 @@ When a stranger lands on your site, they need immediate answers to three basic q
 
 If they have to scroll down or click three pages deep just to figure out you run a commercial plumbing business in Chicago, you’ve lost them.
 
-* **The Bad Example:** A massive, blurry background photo of an office building with text that reads: *"Innovative Solutions for Modern Infrastructure. Engineering Excellence Since 1998."* (This tells the buyer absolutely nothing about what you can do for them).
-* **The Good Example:** A crisp photo of your service trucks with bold text that reads: *"Emergency Commercial Plumbing for Chicago Restaurants. Fixed Today or You Don't Pay."*
+### Homepage Framing Comparison
+
+<div className="grid gap-4 my-6 sm:grid-cols-2">
+  <div className="p-5 rounded-xl border border-border/60 bg-muted/20 relative overflow-hidden">
+    <div className="absolute top-0 right-0 bg-destructive/10 text-destructive text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-bl border-l border-b border-border/40">
+      The Bad Example
+    </div>
+    <p className="text-sm italic text-muted-foreground mt-2">
+      "Innovative Solutions for Modern Infrastructure. Engineering Excellence Since 1998."
+    </p>
+    <div className="text-xs text-destructive/80 font-medium mt-3">❌ Vague. Tells the buyer absolutely nothing.</div>
+  </div>
+  
+  <div className="p-5 rounded-xl border border-primary/30 bg-primary/5 relative overflow-hidden">
+    <div className="absolute top-0 right-0 bg-primary/10 text-primary text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-bl border-l border-b border-border/40">
+      The Good Example
+    </div>
+    <p className="text-sm font-semibold text-foreground mt-2">
+      "Emergency Commercial Plumbing for Chicago Restaurants. Fixed Today or You Don't Pay."
+    </p>
+    <div className="text-xs text-primary font-medium mt-3">✅ Instant context. Addresses an explicit service area and target niche.</div>
+  </div>
+</div>
 
 `[Image: A webpage mock-up with grey boxes covering everything except the initial top screen, highlighting the exact headline and button areas to focus on]`
 
@@ -57,7 +80,9 @@ A massive mistake small business owners make is giving visitors way too many cho
 
 When you give people five options, they get overwhelmed and choose none. 
 
-> *“CTA (Call to Action)” is the specific button or link that tells a visitor exactly what to do next, like “Book a free 15-min call” or “Get a fast quote.”*
+<Callout>
+  **“CTA (Call to Action)”** is the specific button or link that tells a visitor exactly what to do next, like *“Book a free 15-min call”* or *“Get a fast quote.”*
+</Callout>
 
 Industry research shows that clean pages with a **single, clear call to action** significantly outperform cluttered pages. In web testing environments, reducing the number of options down to one single, clear button can boost clicks by up to 232%. 
 
@@ -103,11 +128,38 @@ Think of your website like digital real estate. The space at the very top of you
 
 ## Your 7-Second Homepage Checklist
 
-- [ ] My headline explains exactly what I do in plain English.
-- [ ] A visitor can tell who my ideal customer is within 7 seconds.
-- [ ] There is only ONE main action button visible before scrolling.
-- [ ] The action button uses a contrasting color that pops off the page.
-- [ ] I looked at my homepage on my smartphone today and it loaded quickly.
+<ul className="space-y-3 my-6 list-none pl-0">
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>My headline explains exactly what I do in plain English.</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>A visitor can tell who my ideal customer is within 7 seconds.</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>There is only ONE main action button visible before scrolling.</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>The action button uses a contrasting color that pops off the page.</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>I looked at my homepage on my smartphone today and it loaded quickly.</span>
+  </li>
+</ul>
 
 ---
 

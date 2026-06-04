@@ -39,7 +39,7 @@ When someone clicks onto your Instagram profile, they form an opinion in less th
 Facebook is still the go-to platform for local services, contractors, and retail buyers over the age of 30. If your business page looks messy, your service is assumed to be messy too. Fix these three things immediately:
 
 * **The Cover Photo:** This is a massive piece of visual real estate. Do not leave it as a boring stock photo of a keyboard or a coffee cup. Use a high-quality picture of your actual team, your store, or your completed work. Add a clear text overlay that states your main value proposition. 
-  * *Value Proposition simply means the core promise of value your business delivers that makes you better than the competition.*
+  * <span className="text-sm text-muted-foreground">**Value Proposition** simply means the core promise of value your business delivers that makes you better than the competition.</span>
   * *Text Overlay Example:* "Serving Portland with 24/7 Emergency AC Repair. Fixed Right the First Time."
 * **The "About" Section:** Keep it to a brief, high-impact trust statement. Include your physical service area, your phone number, and a direct link to your website. If a customer has to search through your posts just to find out if you service their zip code, they will go to a competitor.
 * **The Pinned Post:** Facebook allows you to "pin" one post to the very top of your timeline so it's the first thing people see when they scroll down. Make this pinned post a deep-dive customer story or a video walkthrough of a successful project. 
@@ -60,16 +60,24 @@ Instead, rely on the **Content Signal Rule**. This means you only need a baselin
 
 ## 4. DMs and Auto-Replies: Don't Sound Like a Robot
 
-> *“DMs” stands for Direct Messages—the private inbox folders inside Facebook and Instagram where customers can message your business directly.*
+<Callout>
+  **“DMs”** stands for Direct Messages—the private inbox folders inside Facebook and Instagram where customers can message your business directly.
+</Callout>
 
 When a prospect sends you a message on social media, they expect a fast reply. In fact, inside sales data shows that replying to a lead within 5 minutes increases your chances of converting them into a customer by almost 400%. 
 
 Since you can't stare at your phone all day while running a business, you need to set up simple auto-replies. But avoid the corporate, robotic default templates like: *"Thank you for contacting customer service. Your inquiry is important to us."* That feels cold and dismissive.
 
-Instead, make your auto-reply sound like a real, helpful human being. Go to your meta business settings and copy this template:
+Instead, make your auto-reply sound like a real, helpful human being. Go to your Meta Business settings and copy this template:
 
-> **The Human Auto-Reply Template:**
-> "Hey there! Thanks so much for reaching out. This is [Your Name], owner of [Business Name]. We’re currently out on a job site helping a client, but we check our messages a few times a day. If you need a fast quote or want to book a spot immediately, the quickest way is to grab a time directly on our calendar here: [Insert Link]. Talk soon!"
+<div className="my-6 p-5 rounded-xl border border-border bg-muted/40 font-mono text-xs sm:text-sm leading-relaxed relative overflow-hidden">
+  <div className="absolute top-0 right-0 bg-primary/10 text-primary text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-bl border-l border-b border-border/50">
+    Meta Auto-Reply
+  </div>
+  <p className="text-foreground/90">
+    "Hey there! Thanks so much for reaching out. This is <span className="text-primary">[Your Name]</span>, owner of <span className="text-primary">[Business Name]</span>. We’re currently out on a job site helping a client, but we check our messages a few times a day. If you need a fast quote or want to book a spot immediately, the quickest way is to grab a time directly on our calendar here: <span className="text-primary underline">[Insert Link]</span>. Talk soon!"
+  </p>
+</div>
 
 ---
 
@@ -85,11 +93,38 @@ It is fantastic to show your personality, your team, and your community work. Bu
 
 ## Your Quick Social Media Audit Checklist
 
-- [ ] My Instagram bio clearly states who I help and has a direct action link.
-- [ ] My Instagram story highlights have clear labels like "Results" and "Tips."
-- [ ] My Facebook cover photo has text showing what I do (no generic stock handshakes).
-- [ ] I have pinned a powerful customer success story to the top of my Facebook page.
-- [ ] My auto-reply is turned on and reads like a friendly text message, not a legal document.
+<ul className="space-y-3 my-6 list-none pl-0">
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>My Instagram bio clearly states who I help and has a direct action link.</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>My Instagram story highlights have clear labels like "Results" and "Tips."</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>My Facebook cover photo has text showing what I do (no generic stock handshakes).</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>I have pinned a powerful customer success story to the top of my Facebook page.</span>
+  </li>
+  <li className="flex items-start gap-3 text-muted-foreground">
+    <div className="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 border-primary flex items-center justify-center bg-primary/10">
+      <svg className="w-3.5 h-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <span>My auto-reply is turned on and reads like a friendly text message, not a legal document.</span>
+  </li>
+</ul>
 
 ---
 
