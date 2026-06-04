@@ -10,7 +10,10 @@
     "dbtypes": "npx supabase gen types typescript --project-id uvpwekdimtmmvnrimofd > database.types.ts"
   },
   "dependencies": {
+    "@mdx-js/loader": "^3.1.1",
+    "@mdx-js/react": "^3.1.1",
     "@nanostores/react": "^1.1.0",
+    "@next/mdx": "^16.2.7",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.1",
     "@tanstack/react-query": "^5.100.9",
