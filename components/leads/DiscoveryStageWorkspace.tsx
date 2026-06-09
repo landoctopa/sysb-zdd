@@ -263,6 +263,7 @@ export default function DiscoveryStageWorkspace({
 
                 {configId === 'find_key_people' && (
                   <Step2FindPeople
+                    lead={lead} // 🔥 INJECTED LEAD ROW OBJECT
                     dbTask={dbTask}
                     contacts={contacts}
                     isSaving={isSaving}
@@ -270,6 +271,7 @@ export default function DiscoveryStageWorkspace({
                     onEditPerson={handleOpenEditContact}
                     onDeletePerson={onContactDeleted}
                     onCompleteTask={handleCompleteTask}
+                    onContactCreated={onContactCreated} // 🔥 INJECTED REAL-TIME STATE RE-SYNC
                   />
                 )}
 

@@ -1,5 +1,5 @@
 'use client';
-// app/components/leads/NotesWidget.tsx
+// components/leads/NotesWidget.tsx
 import React, { useState, useTransition } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 
 interface NotesWidgetProps {
   leadId: string;
-  currentStage: string;
+  currentStage: any; // Dynamic typing alignment
   onNoteSaved: (newNoteAction: any) => void;
 }
 
@@ -24,16 +24,16 @@ export default function NotesWidget({ leadId, currentStage, onNoteSaved }: Notes
 
     startTransition(async () => {
       try {
-        // Direct internal API dispatch to insert a row into our unified actions ledger
         const response = await fetch('/api/actions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             lead_id: leadId,
-            stage: currentStage,      // Captures the exact phase of the project automatically
-            type: 'note',             // Identifies this record as a static text note
+            // 🛠️ FIX: Changed key from 'stage' to 'pipeline_stage' to support schema columns
+            pipeline_stage: currentStage,      
+            type: 'note',             
             channel: 'internal',
-            status: 'completed',      // Notes are immediately historical items
+            status: 'completed',      
             title: `Manual Note taken during ${currentStage}`,
             body: noteText.trim(),
             metadata: { client_timestamp: new Date().toISOString() }
@@ -45,7 +45,7 @@ export default function NotesWidget({ leadId, currentStage, onNoteSaved }: Notes
 
         toast.success('Note saved to your history.', { id: toastId });
         setNoteText('');
-        onNoteSaved(savedAction); // Push instantly up to reload client timeline views
+        onNoteSaved(savedAction); 
       } catch (err) {
         toast.error('Failed to log your note. Try again.', { id: toastId });
       }
@@ -63,7 +63,7 @@ export default function NotesWidget({ leadId, currentStage, onNoteSaved }: Notes
         placeholder={`Type out any thoughts or conversation details here. We will save this note directly inside your ${currentStage} project history...`}
         value={noteText}
         onChange={(e) => setNoteText(e.target.value)}
-        className="text-xs bg-muted/10 border-muted focus:bg-background min-h-[90px] resize-none focus:outline-none focus:border-primary/40 transition-colors"
+        className="text-xs bg-muted/10 border-muted focus:bg-background min-h-[90px] resize-none focus:outline-none focus:border-primary/40 transition-colors text-foreground placeholder:text-muted-foreground"
         disabled={isPending}
       />
 

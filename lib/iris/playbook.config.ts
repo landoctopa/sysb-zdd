@@ -93,37 +93,85 @@ export const IRIS_PLAYBOOK: Record<string, IrisStageConfig> = {
   },
 
   engaged: {
-    goal: 'Nurture prospect relationship, answer baseline questions, and secure depth requirements with primary stakeholders.',
+    goal: 'Categorize incoming buyer intent signals, establish peer-to-peer trust barriers, and convert initial messages into locked calendar appointments.',
     entry_message: {
       template: 'entry_briefing',
       context_fields: ['lead.company_name', 'lead.strategic_analysis']
     },
     tasks: [
       {
-        id: 'nurture_followup',
+        id: 'engagement_framework_intro',
         order: 1,
-        title: 'Send relationship nurturing touchpoint',
+        title: 'Review the Consultative B2B Engagement Framework',
         channel: 'internal',
-        due_business_days: 2,
+        due_business_days: 1,
         required: true,
-        iris_tip: 'Share a relevant point or insight that aligns with your previous discovery sync to maintain momentum.',
+        iris_tip: 'Read through your strategic guidelines and click the learning block link: "The Scarcity Loop: Why Pitching via Text Destroves B2B Meeting Bookings" to master professional response mechanics.',
         completion_gate: {
-          condition: 'task.metadata.followup_logged === true',
-          blocked_message: 'Confirm you have dispatched your nurturing follow-up line to advance.'
+          condition: 'task.metadata.framework_reviewed === true',
+          blocked_message: 'Verify that you have reviewed the alignment framework intro instructions.'
         }
       },
       {
-        id: 'map_additional_stakeholders',
+        id: 'categorize_buyer_response',
         order: 2,
-        title: 'Map core economic decision makers',
+        title: 'Diagnose and Categorize the Response Flavor',
         channel: 'internal',
+        due_business_days: 1,
+        required: true,
+        depends_on: ['engagement_framework_intro'],
+        iris_tip: 'Not all replies are equal. Tag the prospect response string (Curious, Timid, Direct, or Referral) to unlock custom conversational coping plays.',
+        completion_gate: {
+          condition: 'task.metadata.response_category !== undefined',
+          blocked_message: 'Select a response category card from the diagnostic matrix grid.'
+        }
+      },
+      {
+        id: 'stakeholder_deep_research',
+        order: 3,
+        title: 'Conduct Contextual Common Ground Research',
+        channel: 'internal',
+        due_business_days: 1,
+        required: true,
+        depends_on: ['categorize_buyer_response'],
+        iris_tip: 'Look up the responding individual on professional social indices. Identify shared common grounds like common interests, mutual clubs, shared groups, or specific professional specialities to anchor personal rapport.',
+        completion_gate: {
+          condition: 'task.metadata.research_hooks_saved === true',
+          blocked_message: 'Save at least one local background rapport token descriptor inside your scratchpad desk.'
+        }
+      },
+      {
+        id: 'generate_3_part_reply',
+        order: 4,
+        title: 'Execute the 3-Part Response Framework Script',
+        channel: 'auto',
+        due_business_days: 1,
+        required: true,
+        depends_on: ['stakeholder_deep_research'],
+        iris_tip: 'Review your custom compiled response playbook script (Acknowledge + Bridge + Low-Friction Ask). Drop your text draft, schedule a physical meeting, or generate a 60-second video presentation line.',
+        completion_gate: {
+          condition: 'task.metadata.reply_message_dispatched === true',
+          blocked_message: 'Mark this playbook item as completed once you have sent out your tailored response message variant.'
+        }
+      },
+      {
+        id: 'schedule_appointment_gate',
+        order: 5,
+        title: 'Run the Calendar Game & Settle Appointment Outcome',
+        channel: 'meeting',
         due_business_days: 2,
-        required: false,
-        iris_tip: 'Identify peripheral champions or executive sponsors who will be evaluating your upcoming proposal parameters.'
+        required: true,
+        depends_on: ['generate_3_part_reply'],
+        iris_tip: 'Track scheduling consensus using implied calendar scarcity parameters. If they commit, record the date parameters to mutate the deal status safely.',
+        completion_gate: {
+          condition: 'task.metadata.appointment_outcome === "scheduled" || task.metadata.appointment_outcome === "dropped"',
+          blocked_message: 'Explicitly record a scheduled appointment date matrix or drop the thread to close this playbook workspace stage loop.'
+        }
       }
     ],
     checkback_rules: [],
-    exit_criteria: []
+    exit_criteria: [],
+    exit_blocked_message: 'You must lock a formal calendar date parameter or explicitly settle the conversation outcome thread to advance past the Engaged playbook.'
   },
 
   solution_fit: {

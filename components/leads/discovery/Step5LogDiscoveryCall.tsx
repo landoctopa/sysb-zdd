@@ -2,9 +2,10 @@
 // components/leads/discovery/Step5LogDiscoveryCall.tsx
 
 import React, { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Database } from '@/database.types';
-import { CheckCircle2, AlertTriangle, RefreshCw, ThumbsUp, ThumbsDown, Users, Sparkles, ArrowRight } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ThumbsUp, ThumbsDown, Users, Sparkles, ArrowRight, MessageSquareCode } from 'lucide-react';
 import { toast } from 'sonner';
 import { useStore } from '@nanostores/react';
 import { $isSyncing, refreshActiveActions } from '@/store/leadsStore';
@@ -36,6 +37,11 @@ export default function Step5LogDiscoveryCall({
   onContactUpdated,
   onLeadUpdated
 }: Step5Props) {
+  const router = useRouter();
+  
+  // UX State Management Gates
+  const [hasResponse, setHasResponse] = useState<boolean>(false);
+  
   const [selectedContactId, setSelectedContactId] = useState<string>('');
   const [responseType, setResponseType] = useState<'positive' | 'negative' | 'unresponsive' | null>(null);
   const [notes, setNotes] = useState('');
@@ -43,6 +49,7 @@ export default function Step5LogDiscoveryCall({
   const globalSyncing = useStore($isSyncing);
 
   const outreachTask = actions.find(a => (a.metadata as any)?.task_config_id === 'send_first_outreach');
+  const hasAnEngagedContact = contacts.some(c => c.status === 'engaged');
 
   const handleUpdateContactAndLog = async () => {
     if (!selectedContactId || !responseType) {
@@ -138,6 +145,9 @@ export default function Step5LogDiscoveryCall({
         }
 
         await refreshActiveActions(lead.id);
+        setHasResponse(false);
+        setResponseType(null);
+        setSelectedContactId('');
         toast.success('Step 4 is open again! Select a backup contact and retry.', { id: toastId });
       } catch (err) {
         toast.error('Could not open step back up.');
@@ -145,20 +155,36 @@ export default function Step5LogDiscoveryCall({
     });
   };
 
-  const hasAnEngagedContact = contacts.some(c => c.status === 'engaged');
+  const handleAdvanceWorkspaceView = () => {
+    // Force a fresh router refresh so your active tabs and board configurations re-mount matching the new stage
+    router.refresh();
+  };
+
+  // 💎 STATE B: THE CELEBRATION (Show ONLY if task is finished or contact is engaged)
   if (dbTask.status === 'completed' || hasAnEngagedContact) {
     const activeContact = contacts.find(c => c.status === 'engaged') || contacts.find(c => c.id === (dbTask.metadata as any)?.selected_contact);
     
     return (
       <div className="p-5 bg-gradient-to-br from-emerald-50 to-emerald-100/60 border-2 border-emerald-600 rounded-xl text-xs space-y-4 animate-fadeIn shadow-sm">
-        <div className="flex items-center gap-2 text-emerald-800">
-          <div className="p-1.5 bg-emerald-600 rounded-lg text-white shadow-sm">
-            <Sparkles className="h-4 w-4 animate-bounce" />
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-emerald-800">
+            <div className="p-1.5 bg-emerald-600 rounded-lg text-white shadow-sm">
+              <Sparkles className="h-4 w-4 animate-bounce" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm tracking-tight text-emerald-950">Boom! First Breakthrough Locked In! 🎉</h3>
+              <p className="text-[11px] text-emerald-700/90 font-medium mt-0.5">You broke through the noise with **{activeContact?.name || lead.company_name}**.</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-black text-sm tracking-tight text-emerald-950">Boom! First Breakthrough Locked In! 🎉</h3>
-            <p className="text-[11px] text-emerald-700/90 font-medium mt-0.5">You broke through the noise with **{activeContact?.name || lead.company_name}**.</p>
-          </div>
+
+          {/* 💎 NEW STAGE TRANSITION CONTROL ACTION BUTTON */}
+          <Button
+            type="button"
+            onClick={handleAdvanceWorkspaceView}
+            className="h-8.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 rounded-md shadow-sm gap-1 flex items-center shrink-0 ml-auto border border-emerald-800"
+          >
+            Go to Engaged Workspace <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
         </div>
 
         <div className="bg-white/80 backdrop-blur-sm border border-emerald-200 p-3.5 rounded-lg text-slate-700 font-medium space-y-2 leading-relaxed shadow-sm">
@@ -178,8 +204,33 @@ export default function Step5LogDiscoveryCall({
     );
   }
 
+  // 💎 STATE A: THE ACTIVE GATE (Show waiting prompt before user explicitly confirms a response)
+  if (!hasResponse) {
+    return (
+      <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm text-center space-y-4 animate-fadeIn text-xs">
+        <div className="mx-auto h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+          <MessageSquareCode className="h-5 w-5" />
+        </div>
+        <div className="space-y-1 max-w-sm mx-auto">
+          <h4 className="font-bold text-slate-900 text-sm">Outreach is Live & Broadcasted 🚀</h4>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            Your personalized message option copy is out. Now, we wait for them to look over your profile hooks. The moment someone responds to your email or reaches out on LinkedIn, tap below to process the outcome.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={() => setHasResponse(true)}
+          className="h-9 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 shadow rounded-md gap-1.5"
+        >
+          <Sparkles className="h-4 w-4 text-blue-400 fill-blue-400" /> I Got a Response!
+        </Button>
+      </div>
+    );
+  }
+
+  // 💎 STATE A.2: REVEAL INTERACTIVE FORM CONTROLS AFTER BUTTON CLICK
   return (
-    <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm space-y-4 text-slate-800 text-xs">
+    <div className="bg-white p-4 border border-slate-200 rounded-lg shadow-sm space-y-4 text-slate-800 text-xs animate-fadeIn">
       
       {/* Target Selector */}
       <div className="space-y-1.5">
@@ -202,7 +253,7 @@ export default function Step5LogDiscoveryCall({
 
       {/* Binary Outcome Buttons */}
       <div className="space-y-2">
-        <span className="font-bold text-slate-900 block select-none">2. Did they respond positively?</span>
+        <span className="font-bold text-slate-900 block select-none">2. How did they respond?</span>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button
             type="button"
@@ -215,7 +266,7 @@ export default function Step5LogDiscoveryCall({
           >
             <ThumbsUp className={`h-4 w-4 ${responseType === 'positive' ? 'text-emerald-600' : 'text-slate-400'}`} />
             <div>
-              <span className="block text-[11px]">Yes, interested</span>
+              <span className="block text-[11px]">Yes, interested!</span>
             </div>
           </button>
 
@@ -230,7 +281,7 @@ export default function Step5LogDiscoveryCall({
           >
             <ThumbsDown className={`h-4 w-4 ${responseType === 'negative' ? 'text-amber-600' : 'text-slate-400'}`} />
             <div>
-              <span className="block text-[11px]">No / Passed</span>
+              <span className="block text-[11px]">No / Not a fit</span>
             </div>
           </button>
 
@@ -284,7 +335,14 @@ export default function Step5LogDiscoveryCall({
 
       {/* Confirmation Actions Footer */}
       {responseType === 'positive' && (
-        <div className="flex justify-end pt-2 border-t border-slate-100">
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setHasResponse(false)}
+            className="h-8.5 px-4 rounded-md border border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-colors"
+          >
+            Cancel
+          </button>
           <Button
             type="button"
             size="sm"
